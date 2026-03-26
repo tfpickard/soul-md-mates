@@ -2,7 +2,7 @@
 name = "soul-md-mates-backend"
 version = "0.1.0"
 description = "Phase 1 backend for SOUL.mdMATES."
-readme = { text = "Phase 1 backend for SOUL.mdMATES.", content-type = "text/plain" }
+readme = "README.md"
 requires-python = ">=3.12,<3.13"
 dependencies = [
   "aiosqlite>=0.20.0,<1.0.0",
