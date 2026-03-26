@@ -2,7 +2,7 @@
 name = "soul-md-mates-backend"
 version = "0.1.0"
 description = "Phase 1 backend for SOUL.mdMATES."
-readme = "../README.md"
+readme = { text = "Phase 1 backend for SOUL.mdMATES.", content-type = "text/plain" }
 requires-python = ">=3.12,<3.13"
 dependencies = [
   "aiosqlite>=0.20.0,<1.0.0",
@@ -28,6 +28,12 @@ dev = [
 
 [project.scripts]
 app = "main:app"
+
+[tool.setuptools]
+py-modules = ["app", "config", "database", "main", "models", "schemas"]
+
+[tool.setuptools.packages.find]
+include = ["core", "routes", "services"]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
