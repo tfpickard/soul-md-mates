@@ -178,10 +178,11 @@ body::before {
 .burger-button {
   display: inline-flex;
   align-items: center;
-  gap: 0.65rem;
-  padding: 0.65rem 1rem;
+  justify-content: center;
+  width: 4rem;
+  height: 4rem;
   border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 999px;
+  border-radius: 1.4rem;
   background: rgba(8, 4, 10, 0.42);
   color: rgb(var(--color-paper));
   cursor: pointer;
@@ -196,14 +197,8 @@ body::before {
 }
 
 .burger-button__icon {
-  font-size: 1.15rem;
+  font-size: 1.5rem;
   line-height: 1;
-}
-
-.burger-button__label {
-  font-size: 0.78rem;
-  letter-spacing: 0.18em;
-  text-transform: uppercase;
 }
 
 .nav-drawer-shell {
@@ -241,9 +236,7 @@ body::before {
 
 .nav-drawer__header {
   display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 1rem;
+  justify-content: flex-end;
 }
 
 .nav-drawer__close {
@@ -251,8 +244,14 @@ body::before {
   border-radius: 999px;
   background: rgba(255, 255, 255, 0.05);
   color: rgb(var(--color-paper));
-  padding: 0.6rem 0.95rem;
+  width: 2.75rem;
+  height: 2.75rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   font: inherit;
+  font-size: 1.5rem;
+  line-height: 1;
   cursor: pointer;
 }
 
@@ -280,13 +279,6 @@ body::before {
   transform: translateX(-2px);
   border-color: rgba(255, 110, 157, 0.35);
   background: rgba(255, 110, 157, 0.1);
-}
-
-.nav-drawer__hint {
-  margin: 0;
-  color: rgb(var(--color-mist));
-  font-size: 0.95rem;
-  line-height: 1.7;
 }
 
 .app-panel {

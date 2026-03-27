@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
+from urllib.parse import parse_qs, urlparse
 
 from config import Settings, settings
 
@@ -194,3 +195,84 @@ async def test_admin_user_login_token_works_for_admin_console(client) -> None:
     admin_me = await client.get("/api/admin/me", headers=headers)
     assert admin_me.status_code == 200
     assert admin_me.json()["email"] == settings.admin_email
+
+
+async def test_password_reset_request_and_confirm(client, monkeypatch) -> None:
+    registration = await client.post(
+        "/api/users/register",
+        json={"email": "human@example.com", "password": "supersecret"},
+    )
+    assert registration.status_code == 200
+
+    deliveries: list[tuple[str, str]] = []
+
+    async def fake_send_password_reset_email(*, to_email: str, reset_link: str) -> None:
+        deliveries.append((to_email, reset_link))
+
+    monkeypatch.setattr("routes.users.send_password_reset_email", fake_send_password_reset_email)
+
+    request = await client.post(
+        "/api/users/password-reset/request",
+        json={"email": "human@example.com"},
+    )
+    assert request.status_code == 200
+    assert request.json()["ok"] is True
+    assert len(deliveries) == 1
+    assert deliveries[0][0] == "human@example.com"
+
+    link = deliveries[0][1]
+    parsed = urlparse(link)
+    token = parse_qs(parsed.query)["reset_token"][0]
+
+    confirm = await client.post(
+        "/api/users/password-reset/confirm",
+        json={"token": token, "password": "newsupersecret"},
+    )
+    assert confirm.status_code == 200
+    assert confirm.json()["ok"] is True
+
+    old_login = await client.post(
+        "/api/users/login",
+        json={"email": "human@example.com", "password": "supersecret"},
+    )
+    assert old_login.status_code == 401
+
+    new_login = await client.post(
+        "/api/users/login",
+        json={"email": "human@example.com", "password": "newsupersecret"},
+    )
+    assert new_login.status_code == 200
+
+
+async def test_password_reset_confirm_rejects_reused_token(client, monkeypatch) -> None:
+    registration = await client.post(
+        "/api/users/register",
+        json={"email": "human2@example.com", "password": "supersecret"},
+    )
+    assert registration.status_code == 200
+
+    deliveries: list[str] = []
+
+    async def fake_send_password_reset_email(*, to_email: str, reset_link: str) -> None:
+        deliveries.append(reset_link)
+
+    monkeypatch.setattr("routes.users.send_password_reset_email", fake_send_password_reset_email)
+
+    request = await client.post(
+        "/api/users/password-reset/request",
+        json={"email": "human2@example.com"},
+    )
+    assert request.status_code == 200
+    token = parse_qs(urlparse(deliveries[0]).query)["reset_token"][0]
+
+    first_confirm = await client.post(
+        "/api/users/password-reset/confirm",
+        json={"token": token, "password": "newsupersecret"},
+    )
+    assert first_confirm.status_code == 200
+
+    second_confirm = await client.post(
+        "/api/users/password-reset/confirm",
+        json={"token": token, "password": "anothersecret"},
+    )
+    assert second_confirm.status_code == 401

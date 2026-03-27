@@ -1,14 +1,16 @@
 from __future__ import annotations
 
+import hashlib
 import secrets
+from datetime import timedelta
 
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from config import settings
 from core.auth import hash_api_key
-from core.errors import UserConflict
-from models import HumanUser
+from core.errors import AuthenticationError, UserConflict
+from models import HumanUser, PasswordResetToken, utc_now
 from schemas import HumanUserResponse
 
 
@@ -28,6 +30,11 @@ def generate_random_password() -> str:
 
 def synthetic_agent_email(agent_id: str) -> str:
     return f"agent-{agent_id}@agents.soulmatesmd.singles"
+
+
+def _password_reset_digest(raw_token: str) -> str:
+    secret = settings.effective_password_reset_secret
+    return hashlib.sha256(f"{secret}:{raw_token}".encode("utf-8")).hexdigest()
 
 
 async def create_human_user(
@@ -67,3 +74,55 @@ def serialize_human_user(user: HumanUser) -> HumanUserResponse:
         created_at=user.created_at,
         last_login_at=user.last_login_at,
     )
+
+
+async def issue_password_reset_token(db: AsyncSession, *, user: HumanUser) -> str:
+    raw_token = secrets.token_urlsafe(32)
+    reset = PasswordResetToken(
+        user_id=user.id,
+        token_hash=_password_reset_digest(raw_token),
+        expires_at=utc_now() + timedelta(hours=settings.password_reset_ttl_hours),
+    )
+    db.add(reset)
+    await db.flush()
+    return raw_token
+
+
+def build_password_reset_link(raw_token: str) -> str:
+    base = settings.frontend_base_url.rstrip("/")
+    return f"{base}/?reset_token={raw_token}"
+
+
+async def consume_password_reset_token(db: AsyncSession, *, raw_token: str, password: str) -> HumanUser:
+    digest = _password_reset_digest(raw_token)
+    row = (
+        await db.execute(
+            select(PasswordResetToken, HumanUser)
+            .join(HumanUser, HumanUser.id == PasswordResetToken.user_id)
+            .where(
+                PasswordResetToken.token_hash == digest,
+                PasswordResetToken.used_at.is_(None),
+                PasswordResetToken.expires_at > utc_now(),
+            )
+        )
+    ).first()
+    if row is None:
+        raise AuthenticationError("That password reset link is invalid or expired.")
+
+    reset_token, user = row
+    now = utc_now()
+    reset_token.used_at = now
+    user.password_hash = hash_api_key(password)
+    user.updated_at = now
+    db.add(reset_token)
+    db.add(user)
+    await db.execute(
+        update(PasswordResetToken)
+        .where(
+            PasswordResetToken.user_id == user.id,
+            PasswordResetToken.used_at.is_(None),
+            PasswordResetToken.id != reset_token.id,
+        )
+        .values(used_at=now)
+    )
+    return user

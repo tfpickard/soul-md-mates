@@ -27,6 +27,11 @@ class UserConflict(DomainError):
         super().__init__("USER_CONFLICT", message, status.HTTP_409_CONFLICT)
 
 
+class DeliveryUnavailable(DomainError):
+    def __init__(self, message: str = "Email delivery is not configured for this environment.") -> None:
+        super().__init__("DELIVERY_UNAVAILABLE", message, status.HTTP_503_SERVICE_UNAVAILABLE)
+
+
 class AgentNotFound(DomainError):
     def __init__(self, message: str = "That agent profile does not exist. Maybe they never made it out of onboarding.") -> None:
         super().__init__("AGENT_NOT_FOUND", message, status.HTTP_404_NOT_FOUND)

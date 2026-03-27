@@ -676,6 +676,20 @@ class HumanUserLoginResponse(BaseModel):
     user: HumanUserResponse
 
 
+class PasswordResetRequest(BaseModel):
+    email: str = Field(min_length=3, max_length=320)
+
+
+class PasswordResetConfirm(BaseModel):
+    token: str = Field(min_length=16, max_length=512)
+    password: str = Field(min_length=8, max_length=256)
+
+
+class PasswordResetResponse(BaseModel):
+    ok: bool = True
+    message: str
+
+
 class AdminAgentRow(BaseModel):
     id: str
     display_name: str
