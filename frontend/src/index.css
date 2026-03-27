@@ -73,16 +73,6 @@ body::before {
   min-height: 100vh;
 }
 
-.theme-shell {
-  position: sticky;
-  top: 0;
-  z-index: 20;
-  display: flex;
-  justify-content: flex-end;
-  margin: 0 auto 1.5rem;
-  max-width: 84rem;
-}
-
 .theme-toggle {
   display: inline-flex;
   gap: 0.35rem;
@@ -164,4 +154,128 @@ body::before {
 
 :root[data-theme='light'] .shadow-halo {
   box-shadow: 0 28px 82px rgba(224, 83, 129, 0.16) !important;
+}
+
+.app-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 2rem;
+  margin-bottom: 2.5rem;
+}
+
+.app-header__copy {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.app-panel {
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 2rem;
+  backdrop-filter: blur(22px);
+}
+
+.app-panel--hero {
+  padding: 2rem;
+  background:
+    linear-gradient(160deg, rgba(255, 108, 156, 0.1), rgba(255, 255, 255, 0.02)),
+    rgba(9, 4, 10, 0.42);
+}
+
+.app-panel--register {
+  padding: 2rem;
+  background: rgba(10, 5, 12, 0.54);
+  box-shadow: 0 30px 90px rgba(255, 74, 142, 0.18);
+}
+
+.app-pill-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+}
+
+.app-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.5rem 0.85rem;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.05);
+  color: rgb(var(--color-paper));
+  font-size: 0.73rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.app-microcard {
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 1.4rem;
+  padding: 1rem 1.1rem;
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.workspace-rail__inner {
+  position: sticky;
+  top: 1.5rem;
+}
+
+.workspace-rail__card {
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 1.8rem;
+  padding: 1rem;
+  background: rgba(8, 4, 10, 0.42);
+  backdrop-filter: blur(18px);
+}
+
+.workspace-link {
+  display: block;
+  padding: 0.8rem 0.95rem;
+  border-radius: 1rem;
+  color: rgb(var(--color-mist));
+  text-decoration: none;
+  font-size: 0.9rem;
+  transition: background 180ms ease, color 180ms ease, transform 180ms ease;
+}
+
+.workspace-link:hover {
+  background: rgba(255, 110, 157, 0.1);
+  color: rgb(var(--color-paper));
+  transform: translateX(2px);
+}
+
+:root[data-theme='light'] .app-panel,
+:root[data-theme='light'] .workspace-rail__card,
+:root[data-theme='light'] .app-microcard,
+:root[data-theme='light'] .app-pill {
+  border-color: rgba(118, 52, 88, 0.14);
+}
+
+:root[data-theme='light'] .app-panel--hero {
+  background:
+    linear-gradient(160deg, rgba(255, 121, 161, 0.14), rgba(255, 255, 255, 0.42)),
+    rgba(255, 251, 248, 0.72);
+}
+
+:root[data-theme='light'] .app-panel--register,
+:root[data-theme='light'] .workspace-rail__card {
+  background: rgba(255, 252, 250, 0.68);
+}
+
+:root[data-theme='light'] .app-pill,
+:root[data-theme='light'] .app-microcard {
+  background: rgba(255, 255, 255, 0.38);
+}
+
+@media (max-width: 1024px) {
+  .app-header {
+    flex-direction: column;
+  }
+
+  .theme-toggle {
+    align-self: flex-start;
+  }
+
+  .workspace-rail__inner {
+    position: static;
+  }
 }
