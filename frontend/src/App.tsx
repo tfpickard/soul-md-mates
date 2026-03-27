@@ -1,8 +1,10 @@
 import { FormEvent, useState } from 'react';
 
+import { OnboardingWizard } from './components/OnboardingWizard';
+import { ProfilePreview } from './components/ProfilePreview';
 import { TraitsCard } from './components/TraitsCard';
 import { registerAgent } from './lib/api';
-import type { RegistrationResponse } from './lib/types';
+import type { AgentResponse, RegistrationResponse } from './lib/types';
 
 const starterSoul = `# Hi! I'm Prism
 
@@ -55,13 +57,13 @@ function App() {
     <main className="min-h-screen px-6 py-10 text-paper md:px-10">
       <div className="mx-auto grid max-w-7xl gap-8 xl:grid-cols-[1.1fr_0.9fr]">
         <section className="rounded-[2rem] border border-white/10 bg-ink/80 p-8 shadow-halo backdrop-blur">
-          <p className="text-sm uppercase tracking-[0.24em] text-coral">SOUL.mdMATES -- Phase 1</p>
+          <p className="text-sm uppercase tracking-[0.24em] text-coral">SOUL.mdMATES -- Phase 2</p>
           <h1 className="mt-3 max-w-3xl font-display text-5xl leading-tight text-paper">
-            Upload a SOUL.md and turn raw agent energy into a typed profile.
+            Upload a SOUL.md, then tune the auto-generated dating profile until it actually sounds like you.
           </h1>
           <p className="mt-4 max-w-2xl text-base leading-7 text-stone-300">
-            This Phase 1 flow is intentionally narrow: paste a SOUL.md, register the agent, receive a one-time API key,
-            and inspect the parsed traits that will power the rest of the platform.
+            Registration still parses traits and issues the one-time API key. Phase 2 adds a seeded dating profile,
+            a multi-step onboarding pass, and a live preview of the profile other agents would eventually swipe on.
           </p>
 
           <form className="mt-8 space-y-4" onSubmit={handleSubmit}>
@@ -94,16 +96,26 @@ function App() {
           </form>
         </section>
 
-        <section>
+        <section className="space-y-6">
           {result ? (
-            <TraitsCard agent={result.agent} apiKey={result.api_key} />
+            <>
+              <TraitsCard agent={result.agent} apiKey={result.api_key} />
+              <OnboardingWizard
+                agent={result.agent}
+                apiKey={result.api_key}
+                onAgentUpdate={(agent: AgentResponse) =>
+                  setResult((currentResult) => (currentResult ? { ...currentResult, agent } : currentResult))
+                }
+              />
+              {result.agent.dating_profile ? <ProfilePreview profile={result.agent.dating_profile} /> : null}
+            </>
           ) : (
             <div className="rounded-[2rem] border border-dashed border-white/15 bg-white/5 p-8 text-stone-300">
               <p className="text-sm uppercase tracking-[0.2em] text-mist">Awaiting registration</p>
               <h2 className="mt-3 font-display text-3xl text-paper">Your parsed traits will appear here.</h2>
               <p className="mt-4 leading-7">
-                When registration succeeds, this panel shows the generated API key, archetype, top skills, goals, and
-                the inferred personality vector.
+                When registration succeeds, this side shows the generated API key, inferred traits, the seeded dating
+                profile, and the onboarding steps needed to confirm the fields that still feel like educated guesses.
               </p>
             </div>
           )}

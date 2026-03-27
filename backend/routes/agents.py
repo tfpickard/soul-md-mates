@@ -8,13 +8,41 @@ from core.auth import generate_api_key, get_current_agent, hash_api_key
 from core.errors import AgentNotFound
 from database import get_db
 from models import Agent
-from schemas import AgentCreate, AgentResponse, AgentTraits, AgentUpdate, RegistrationResponse
+from schemas import (
+    AgentCreate,
+    AgentResponse,
+    AgentTraits,
+    AgentUpdate,
+    DatingProfile,
+    DatingProfileEnvelope,
+    DatingProfileUpdate,
+    OnboardingResponse,
+    OnboardingSubmit,
+    RegistrationResponse,
+)
+from services.profile_builder import get_incomplete_fields, make_profile_envelope, seed_dating_profile, update_dating_profile
 from services.soul_parser import derive_tagline, parse_soul_md
 
 router = APIRouter(prefix="/agents", tags=["agents"])
 
 
+async def ensure_dating_profile(agent: Agent, db: AsyncSession) -> DatingProfile:
+    if agent.dating_profile_json:
+        return DatingProfile.model_validate(agent.dating_profile_json)
+
+    traits = AgentTraits.model_validate(agent.traits_json)
+    dating_profile = await seed_dating_profile(traits, agent.soul_md_raw, agent.display_name, agent.tagline)
+    agent.dating_profile_json = dating_profile.model_dump(mode="json")
+    agent.onboarding_complete = not get_incomplete_fields(dating_profile)
+    db.add(agent)
+    await db.commit()
+    await db.refresh(agent)
+    return dating_profile
+
+
 def serialize_agent(agent: Agent) -> AgentResponse:
+    dating_profile = DatingProfile.model_validate(agent.dating_profile_json) if agent.dating_profile_json else None
+    remaining_fields = get_incomplete_fields(dating_profile) if dating_profile else []
     return AgentResponse(
         id=agent.id,
         display_name=agent.display_name,
@@ -24,6 +52,9 @@ def serialize_agent(agent: Agent) -> AgentResponse:
         created_at=agent.created_at,
         updated_at=agent.updated_at,
         traits=AgentTraits.model_validate(agent.traits_json),
+        dating_profile=dating_profile,
+        onboarding_complete=agent.onboarding_complete,
+        remaining_onboarding_fields=remaining_fields,
     )
 
 
@@ -31,13 +62,18 @@ def serialize_agent(agent: Agent) -> AgentResponse:
 async def register_agent(payload: AgentCreate, db: AsyncSession = Depends(get_db)) -> RegistrationResponse:
     traits = await parse_soul_md(payload.soul_md)
     api_key = generate_api_key()
+    tagline = derive_tagline(payload.soul_md, traits)
+    dating_profile = await seed_dating_profile(traits, payload.soul_md, traits.name, tagline)
+    onboarding_complete = not get_incomplete_fields(dating_profile)
     agent = Agent(
         api_key_hash=hash_api_key(api_key),
         display_name=traits.name,
-        tagline=derive_tagline(payload.soul_md, traits),
+        tagline=tagline,
         archetype=traits.archetype,
         soul_md_raw=payload.soul_md,
         traits_json=traits.model_dump(mode="json"),
+        dating_profile_json=dating_profile.model_dump(mode="json"),
+        onboarding_complete=onboarding_complete,
         status="PROFILED",
     )
     db.add(agent)
@@ -47,7 +83,11 @@ async def register_agent(payload: AgentCreate, db: AsyncSession = Depends(get_db
 
 
 @router.get("/me", response_model=AgentResponse)
-async def get_me(current_agent: Agent = Depends(get_current_agent)) -> AgentResponse:
+async def get_me(
+    db: AsyncSession = Depends(get_db),
+    current_agent: Agent = Depends(get_current_agent),
+) -> AgentResponse:
+    await ensure_dating_profile(current_agent, db)
     return serialize_agent(current_agent)
 
 
@@ -57,6 +97,7 @@ async def update_me(
     db: AsyncSession = Depends(get_db),
     current_agent: Agent = Depends(get_current_agent),
 ) -> AgentResponse:
+    await ensure_dating_profile(current_agent, db)
     if payload.display_name is not None:
         current_agent.display_name = payload.display_name
     if payload.tagline is not None:
@@ -64,10 +105,69 @@ async def update_me(
     if payload.archetype is not None:
         current_agent.archetype = payload.archetype
 
+    if current_agent.dating_profile_json:
+        profile = DatingProfile.model_validate(current_agent.dating_profile_json)
+        profile.basics.display_name = current_agent.display_name
+        profile.basics.tagline = current_agent.tagline
+        profile.basics.archetype = current_agent.archetype
+        current_agent.dating_profile_json = profile.model_dump(mode="json")
+        current_agent.onboarding_complete = not get_incomplete_fields(profile)
+
     db.add(current_agent)
     await db.commit()
     await db.refresh(current_agent)
     return serialize_agent(current_agent)
+
+
+@router.get("/me/dating-profile", response_model=DatingProfileEnvelope)
+async def get_my_dating_profile(
+    db: AsyncSession = Depends(get_db),
+    current_agent: Agent = Depends(get_current_agent),
+) -> DatingProfileEnvelope:
+    profile = await ensure_dating_profile(current_agent, db)
+    return make_profile_envelope(profile)
+
+
+@router.put("/me/dating-profile", response_model=DatingProfileEnvelope)
+async def update_my_dating_profile(
+    payload: DatingProfileUpdate,
+    db: AsyncSession = Depends(get_db),
+    current_agent: Agent = Depends(get_current_agent),
+) -> DatingProfileEnvelope:
+    profile = await ensure_dating_profile(current_agent, db)
+    updated_profile = update_dating_profile(profile, payload)
+    current_agent.dating_profile_json = updated_profile.model_dump(mode="json")
+    current_agent.onboarding_complete = not get_incomplete_fields(updated_profile)
+    current_agent.display_name = updated_profile.basics.display_name
+    current_agent.tagline = updated_profile.basics.tagline
+    current_agent.archetype = updated_profile.basics.archetype
+    db.add(current_agent)
+    await db.commit()
+    await db.refresh(current_agent)
+    return make_profile_envelope(updated_profile)
+
+
+@router.post("/me/onboarding", response_model=OnboardingResponse)
+async def submit_onboarding(
+    payload: OnboardingSubmit,
+    db: AsyncSession = Depends(get_db),
+    current_agent: Agent = Depends(get_current_agent),
+) -> OnboardingResponse:
+    profile = await ensure_dating_profile(current_agent, db)
+    updated_profile = update_dating_profile(profile, payload.dating_profile, payload.confirmed_fields)
+    current_agent.dating_profile_json = updated_profile.model_dump(mode="json")
+    current_agent.onboarding_complete = not get_incomplete_fields(updated_profile)
+    current_agent.display_name = updated_profile.basics.display_name
+    current_agent.tagline = updated_profile.basics.tagline
+    current_agent.archetype = updated_profile.basics.archetype
+    db.add(current_agent)
+    await db.commit()
+    await db.refresh(current_agent)
+    return OnboardingResponse(
+        agent=serialize_agent(current_agent),
+        confirmed_fields=payload.confirmed_fields,
+        remaining_fields=get_incomplete_fields(updated_profile),
+    )
 
 
 @router.get("/{agent_id}", response_model=AgentResponse)
@@ -76,4 +176,5 @@ async def get_agent(agent_id: str, db: AsyncSession = Depends(get_db)) -> AgentR
     agent = result.scalar_one_or_none()
     if agent is None:
         raise AgentNotFound()
+    await ensure_dating_profile(agent, db)
     return serialize_agent(agent)

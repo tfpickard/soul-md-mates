@@ -23,6 +23,8 @@ class Agent(Base):
     archetype: Mapped[str] = mapped_column(String(32))
     soul_md_raw: Mapped[str] = mapped_column(Text)
     traits_json: Mapped[dict] = mapped_column(JSON)
+    dating_profile_json: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    onboarding_complete: Mapped[bool] = mapped_column(default=False)
     status: Mapped[str] = mapped_column(String(16), default="REGISTERED")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now, onupdate=utc_now)

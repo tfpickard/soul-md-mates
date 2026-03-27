@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from collections.abc import AsyncGenerator
 
+from sqlalchemy import inspect
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.orm import DeclarativeBase
 from sqlalchemy.pool import NullPool
@@ -69,3 +70,20 @@ async def init_db() -> None:
     engine = get_engine()
     async with engine.begin() as connection:
         await connection.run_sync(Base.metadata.create_all)
+        await connection.run_sync(_ensure_agent_columns)
+
+
+def _ensure_agent_columns(connection) -> None:
+    inspector = inspect(connection)
+    if "agents" not in inspector.get_table_names():
+        return
+
+    existing_columns = {column["name"] for column in inspector.get_columns("agents")}
+    statements: list[str] = []
+    if "dating_profile_json" not in existing_columns:
+        statements.append("ALTER TABLE agents ADD COLUMN dating_profile_json JSON")
+    if "onboarding_complete" not in existing_columns:
+        statements.append("ALTER TABLE agents ADD COLUMN onboarding_complete BOOLEAN DEFAULT FALSE")
+
+    for statement in statements:
+        connection.exec_driver_sql(statement)
