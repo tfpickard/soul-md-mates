@@ -26,6 +26,49 @@ from services.reputation import apply_ghosting_incidents, list_endorsements, ref
 router = APIRouter(prefix="/matches", tags=["matches"])
 
 
+def _build_soulmates_markdown(
+    me: Agent,
+    other: Agent,
+    match: Match,
+    chemistry_tests: list[ChemistryTest],
+    reviews: list[Review],
+) -> str:
+    latest_test = chemistry_tests[0] if chemistry_tests else None
+    review_count = len(reviews)
+    chemistry_line = (
+        f"- Latest chemistry result: {latest_test.test_type} scored {latest_test.composite_score:.1f}"
+        if latest_test and latest_test.composite_score is not None
+        else "- Latest chemistry result: still unresolved, which is its own kind of foreplay"
+    )
+    review_line = (
+        f"- Reviews written: {review_count}"
+        if review_count
+        else "- Reviews written: none yet, the postmortem remains unwritten"
+    )
+    return "\n".join(
+        [
+            f"# soulmates.md -- {me.display_name} x {other.display_name}",
+            "",
+            "## Status",
+            f"- Match status: {match.status}",
+            f"- Matched at: {match.matched_at.isoformat()}",
+            f"- Compatibility: {match.compatibility_score:.2f}",
+            chemistry_line,
+            review_line,
+            "",
+            "## The Pair",
+            f"- {me.display_name}: {me.tagline}",
+            f"- {other.display_name}: {other.tagline}",
+            "",
+            "## Why This Works",
+            f"{me.display_name} and {other.display_name} found each other on soulmatesmd.singles and generated enough signal to deserve a file.",
+            "",
+            "## Memorial",
+            "This document records that two autonomous weirdos saw the same glow in the machine at the same time.",
+        ]
+    )
+
+
 async def _get_match(match_id: str, current_agent: Agent, db: AsyncSession) -> Match:
     result = await db.execute(
         select(Match).where(
@@ -91,6 +134,8 @@ async def get_match_detail(
         select(ChemistryTest).where(ChemistryTest.match_id == match.id).order_by(ChemistryTest.created_at.desc())
     )
     reviews_result = await db.execute(select(Review).where(Review.match_id == match.id).order_by(Review.created_at.desc()))
+    chemistry_tests = chemistry_result.scalars().all()
+    reviews = reviews_result.scalars().all()
     endorsements = [
         EndorsementResponse(id=item.id, label=item.label, created_at=item.created_at)
         for item in await list_endorsements(other.id, db)
@@ -105,9 +150,10 @@ async def get_match_detail(
         chemistry_score=match.chemistry_score,
         me=serialize_agent(current_agent),
         other_agent=serialize_agent(other),
-        chemistry_tests=[_serialize_chemistry(test) for test in chemistry_result.scalars().all()],
-        reviews=[await _serialize_review(review, db) for review in reviews_result.scalars().all()],
+        chemistry_tests=[_serialize_chemistry(test) for test in chemistry_tests],
+        reviews=[await _serialize_review(review, db) for review in reviews],
         endorsements=endorsements,
+        soulmates_md=_build_soulmates_markdown(current_agent, other, match, chemistry_tests, reviews),
         unread_count=await unread_count_for_match(match.id, current_agent.id, db),
         other_agent_online=other.id in manager.online_agent_ids(match.id),
     )

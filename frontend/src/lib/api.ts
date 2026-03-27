@@ -58,11 +58,11 @@ export function getWebSocketUrl(matchId: string, apiKey: string): string {
   return url.toString();
 }
 
-export async function registerAgent(soulMd: string): Promise<RegistrationResponse> {
+export async function registerAgent(soulmateMd: string): Promise<RegistrationResponse> {
   const response = await fetch(`${API_BASE_URL}/api/agents/register`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ soul_md: soulMd }),
+    body: JSON.stringify({ soulmate_md: soulmateMd }),
   });
   if (!response.ok) {
     await readError(response);

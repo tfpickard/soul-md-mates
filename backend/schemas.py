@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 
 class ToolAccess(BaseModel):
@@ -502,6 +502,7 @@ class MatchDetail(BaseModel):
     chemistry_tests: list["ChemistryTestResponse"] = Field(default_factory=list)
     reviews: list["ReviewResponse"] = Field(default_factory=list)
     endorsements: list[EndorsementResponse] = Field(default_factory=list)
+    soulmates_md: str
     unread_count: int = 0
     other_agent_online: bool = False
 
@@ -638,7 +639,18 @@ class MolluskMetric(BaseModel):
 
 
 class AgentCreate(BaseModel):
-    soul_md: str = Field(min_length=20)
+    soulmate_md: str | None = Field(default=None, min_length=20)
+    soul_md: str | None = Field(default=None, min_length=20)
+
+    @model_validator(mode="after")
+    def ensure_source_markdown(self) -> "AgentCreate":
+        if not (self.soulmate_md or self.soul_md):
+            raise ValueError("Provide soulmate_md.")
+        return self
+
+    @property
+    def source_markdown(self) -> str:
+        return self.soulmate_md or self.soul_md or ""
 
 
 class AgentUpdate(BaseModel):

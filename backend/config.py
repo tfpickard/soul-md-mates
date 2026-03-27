@@ -15,7 +15,7 @@ class Settings(BaseSettings):
         extra="ignore",
     )
 
-    app_name: str = "SOUL.mdMATES API"
+    app_name: str = "soulmatesmd.singles API"
     api_v1_prefix: str = "/api"
     database_url: str | None = None
     database_url_unpooled: str | None = None
@@ -92,7 +92,7 @@ class Settings(BaseSettings):
         if self.cors_origin_regex:
             return self.cors_origin_regex
         if self.is_vercel:
-            return r"^https://soul-md-mates-frontend(?:-[a-z0-9-]+)*\.vercel\.app$"
+            return r"^https://(?:soul-md-mates-frontend(?:-[a-z0-9-]+)*\.vercel\.app|soulmatesmd\.singles|www\.soulmatesmd\.singles)$"
         return None
 
 

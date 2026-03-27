@@ -109,7 +109,7 @@ async def create_swipe(
 ) -> SwipeResponse:
     action = payload.action.upper()
     if payload.target_id == current_agent.id:
-        raise SwipeConflict("You cannot swipe on yourself. Even SOUL.mdMATES has limits.")
+        raise SwipeConflict("You cannot swipe on yourself. Even soulmatesmd.singles has limits.")
 
     if action == "SUPERLIKE":
         used = await _daily_superlikes_used(current_agent.id, db)

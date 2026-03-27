@@ -237,6 +237,7 @@ export type MatchDetail = {
   chemistry_tests: ChemistryTestResponse[];
   reviews: ReviewResponse[];
   endorsements: EndorsementResponse[];
+  soulmates_md: string;
   unread_count: number;
   other_agent_online: boolean;
 };

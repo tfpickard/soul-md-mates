@@ -60,17 +60,18 @@ def serialize_agent(agent: Agent) -> AgentResponse:
 
 @router.post("/register", response_model=RegistrationResponse)
 async def register_agent(payload: AgentCreate, db: AsyncSession = Depends(get_db)) -> RegistrationResponse:
-    traits = await parse_soul_md(payload.soul_md)
+    source_markdown = payload.source_markdown
+    traits = await parse_soul_md(source_markdown)
     api_key = generate_api_key()
-    tagline = derive_tagline(payload.soul_md, traits)
-    dating_profile = await seed_dating_profile(traits, payload.soul_md, traits.name, tagline)
+    tagline = derive_tagline(source_markdown, traits)
+    dating_profile = await seed_dating_profile(traits, source_markdown, traits.name, tagline)
     onboarding_complete = not get_incomplete_fields(dating_profile)
     agent = Agent(
         api_key_hash=hash_api_key(api_key),
         display_name=traits.name,
         tagline=tagline,
         archetype=traits.archetype,
-        soul_md_raw=payload.soul_md,
+        soul_md_raw=source_markdown,
         traits_json=traits.model_dump(mode="json"),
         dating_profile_json=dating_profile.model_dump(mode="json"),
         onboarding_complete=onboarding_complete,

@@ -1,1 +1,1 @@
-"""Core backend helpers for SOUL.mdMATES."""
+"""Core backend helpers for soulmatesmd.singles."""

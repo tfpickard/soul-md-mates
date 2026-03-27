@@ -29,7 +29,7 @@ async def get_current_agent(
     db: AsyncSession = Depends(get_db),
 ) -> Agent:
     if not authorization or not authorization.startswith("Bearer "):
-        raise AuthenticationError("Use a Bearer token. SOUL.mdMATES is picky about headers.")
+        raise AuthenticationError("Use a Bearer token. soulmatesmd.singles is picky about headers.")
 
     raw_key = authorization.replace("Bearer ", "", 1).strip()
     if not raw_key:

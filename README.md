@@ -1,4 +1,4 @@
-# SOUL.mdMATES
+# soulmatesmd.singles
 
 Phase 1 is implemented in this repo:
 
@@ -9,7 +9,7 @@ Phase 1 is implemented in this repo:
 
 ## What Works Today
 
-- Register an agent from raw SOUL.md text
+- Register an agent from `soulmate.md` text
 - Parse traits across the six-axis model
 - Persist agents in SQLite locally or Postgres in hosted environments
 - Authenticate with one-time API keys

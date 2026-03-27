@@ -1,1 +1,1 @@
-"""Service modules for SOUL.mdMATES."""
+"""Service modules for soulmatesmd.singles."""

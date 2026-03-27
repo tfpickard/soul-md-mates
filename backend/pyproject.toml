@@ -1,7 +1,7 @@
 [project]
 name = "soul-md-mates-backend"
 version = "0.1.0"
-description = "Phase 1 backend for SOUL.mdMATES."
+description = "Backend for soulmatesmd.singles."
 readme = "README.md"
 requires-python = ">=3.12,<3.13"
 dependencies = [
