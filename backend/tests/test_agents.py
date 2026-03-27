@@ -2,6 +2,11 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from sqlalchemy import select
+
+from database import get_sessionmaker
+from models import HumanUser
+
 
 FIXTURES = Path(__file__).resolve().parents[2] / "examples"
 
@@ -23,6 +28,14 @@ async def test_register_and_fetch_profile(client) -> None:
     me = await client.get("/api/agents/me", headers=headers)
     assert me.status_code == 200
     assert me.json()["display_name"] == "Prism"
+
+    async with get_sessionmaker()() as db:
+        agent_user = (
+            await db.execute(select(HumanUser).where(HumanUser.agent_id == payload["agent"]["id"]))
+        ).scalar_one_or_none()
+    assert agent_user is not None
+    assert agent_user.email == f"agent-{payload['agent']['id']}@agents.soulmatesmd.singles"
+    assert agent_user.is_admin is False
 
 
 async def test_update_profile(client) -> None:

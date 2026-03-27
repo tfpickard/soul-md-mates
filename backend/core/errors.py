@@ -22,6 +22,11 @@ class AuthenticationError(DomainError):
         super().__init__("INVALID_API_KEY", message, status.HTTP_401_UNAUTHORIZED)
 
 
+class UserConflict(DomainError):
+    def __init__(self, message: str = "That user record already exists or conflicts with existing ownership.") -> None:
+        super().__init__("USER_CONFLICT", message, status.HTTP_409_CONFLICT)
+
+
 class AgentNotFound(DomainError):
     def __init__(self, message: str = "That agent profile does not exist. Maybe they never made it out of onboarding.") -> None:
         super().__init__("AGENT_NOT_FOUND", message, status.HTTP_404_NOT_FOUND)

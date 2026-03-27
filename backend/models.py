@@ -44,6 +44,7 @@ class HumanUser(Base):
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid4()))
     email: Mapped[str] = mapped_column(String(320), unique=True, index=True)
+    agent_id: Mapped[str | None] = mapped_column(String(36), unique=True, index=True, nullable=True)
     password_hash: Mapped[str] = mapped_column(String(128))
     is_admin: Mapped[bool] = mapped_column(Boolean, default=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)

@@ -4,7 +4,6 @@ from sqlalchemy import case, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from config import settings
-from core.auth import hash_api_key
 from models import Agent, ChemistryTest, HumanUser, Match, Message
 from schemas import (
     AdminAlert,
@@ -27,24 +26,6 @@ DEFAULT_MATCHING_WEIGHTS = AdminMatchingWeights(
     tool_synergy=0.08,
     vibe_bonus=0.12,
 )
-
-
-async def ensure_seed_admin(db: AsyncSession) -> None:
-    if not settings.admin_email or not settings.admin_password:
-        return
-
-    result = await db.execute(select(HumanUser).where(HumanUser.email == settings.admin_email.lower()))
-    user = result.scalar_one_or_none()
-    if user is None:
-        user = HumanUser(
-            email=settings.admin_email.lower(),
-            password_hash=hash_api_key(settings.admin_password),
-            is_admin=True,
-        )
-        db.add(user)
-        await db.commit()
-
-
 def serialize_admin_user(user: HumanUser) -> AdminUserResponse:
     return AdminUserResponse(
         id=user.id,

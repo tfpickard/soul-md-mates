@@ -10,9 +10,8 @@ from httpx import ASGITransport, AsyncClient
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from config import settings
-from database import get_sessionmaker, init_db, reset_database
+from database import init_db, reset_database
 from main import app
-from services.admin import ensure_seed_admin
 
 
 @pytest.fixture()
@@ -25,12 +24,9 @@ async def client(tmp_path: Path) -> AsyncIterator[AsyncClient]:
     settings.blob_read_write_token = None
     settings.hf_token = None
     settings.admin_email = "admin@example.com"
-    settings.admin_password = "supersecret"
     settings.admin_session_secret = "test-admin-secret"
     await reset_database()
     await init_db()
-    async with get_sessionmaker()() as db:
-        await ensure_seed_admin(db)
 
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://testserver") as async_client:

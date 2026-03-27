@@ -71,6 +71,7 @@ async def init_db() -> None:
     async with engine.begin() as connection:
         await connection.run_sync(Base.metadata.create_all)
         await connection.run_sync(_ensure_agent_columns)
+        await connection.run_sync(_ensure_human_user_columns)
         await connection.run_sync(_ensure_match_columns)
 
 
@@ -126,3 +127,19 @@ def _ensure_match_columns(connection) -> None:
 
     for statement in statements:
         connection.exec_driver_sql(statement)
+
+
+def _ensure_human_user_columns(connection) -> None:
+    inspector = inspect(connection)
+    if "human_users" not in inspector.get_table_names():
+        return
+
+    existing_columns = {column["name"] for column in inspector.get_columns("human_users")}
+    statements: list[str] = []
+    if "agent_id" not in existing_columns:
+        statements.append("ALTER TABLE human_users ADD COLUMN agent_id VARCHAR(36)")
+
+    for statement in statements:
+        connection.exec_driver_sql(statement)
+    if "agent_id" not in existing_columns:
+        connection.exec_driver_sql("CREATE UNIQUE INDEX IF NOT EXISTS ix_human_users_agent_id ON human_users (agent_id)")

@@ -16,6 +16,21 @@ async def _register(client, filename: str) -> tuple[str, dict]:
     return payload["api_key"], payload["agent"]
 
 
+async def _register_admin(client) -> str:
+    registration = await client.post(
+        "/api/users/register",
+        json={"email": settings.admin_email, "password": "supersecret"},
+    )
+    assert registration.status_code == 200
+
+    login = await client.post(
+        "/api/admin/login",
+        json={"email": settings.admin_email, "password": "supersecret"},
+    )
+    assert login.status_code == 200
+    return login.json()["token"]
+
+
 def test_vercel_requires_durable_database() -> None:
     previous_vercel = os.environ.get("VERCEL")
     os.environ["VERCEL"] = "1"
@@ -45,12 +60,7 @@ def test_local_database_defaults_to_sqlite() -> None:
 
 
 async def test_admin_login_and_dashboard(client) -> None:
-    login = await client.post(
-        "/api/admin/login",
-        json={"email": settings.admin_email, "password": settings.admin_password},
-    )
-    assert login.status_code == 200
-    token = login.json()["token"]
+    token = await _register_admin(client)
     headers = {"Authorization": f"Bearer {token}"}
 
     me = await client.get("/api/admin/me", headers=headers)
@@ -90,11 +100,7 @@ async def test_admin_activity_includes_registration_and_match(client) -> None:
     await client.post("/api/swipe", headers=headers_a, json={"target_id": me_b.json()["id"], "action": "LIKE"})
     await client.post("/api/swipe", headers=headers_b, json={"target_id": me_a.json()["id"], "action": "LIKE"})
 
-    login = await client.post(
-        "/api/admin/login",
-        json={"email": settings.admin_email, "password": settings.admin_password},
-    )
-    headers = {"Authorization": f"Bearer {login.json()['token']}"}
+    headers = {"Authorization": f"Bearer {await _register_admin(client)}"}
     activity = await client.get("/api/admin/activity", headers=headers)
     assert activity.status_code == 200
     event_types = {item["type"] for item in activity.json()}
@@ -133,3 +139,12 @@ async def test_admin_activity_includes_registration_and_match(client) -> None:
     )
     assert update_agent.status_code == 200
     assert update_agent.json()["trust_tier"] == "WATCHLIST"
+
+
+async def test_human_registration_promotes_matching_admin_email(client) -> None:
+    registration = await client.post(
+        "/api/users/register",
+        json={"email": settings.admin_email, "password": "supersecret"},
+    )
+    assert registration.status_code == 200
+    assert registration.json()["is_admin"] is True
