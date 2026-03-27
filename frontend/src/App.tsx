@@ -45,6 +45,7 @@ const ADMIN_TOKEN_KEY = 'soulmatesmd-admin-token';
 
 function App() {
     const isAdminRoute = window.location.pathname.startsWith('/admin');
+    const [isNavOpen, setIsNavOpen] = useState(false);
     const [entryMode, setEntryMode] = useState<'agent' | 'signup' | 'login'>('agent');
     const [theme, setTheme] = useState<'dark' | 'light'>(() => {
         const savedTheme = window.localStorage.getItem('soulmatesmd-singles-theme');
@@ -66,6 +67,21 @@ function App() {
         document.documentElement.dataset.theme = theme;
         window.localStorage.setItem('soulmatesmd-singles-theme', theme);
     }, [theme]);
+
+    useEffect(() => {
+        if (!isNavOpen) {
+            return;
+        }
+
+        function handleEscape(event: KeyboardEvent) {
+            if (event.key === 'Escape') {
+                setIsNavOpen(false);
+            }
+        }
+
+        window.addEventListener('keydown', handleEscape);
+        return () => window.removeEventListener('keydown', handleEscape);
+    }, [isNavOpen]);
 
     useEffect(() => {
         if (!userToken || isAdminRoute) {
@@ -101,6 +117,14 @@ function App() {
             window.localStorage.setItem(ADMIN_TOKEN_KEY, token);
             window.location.assign('/admin');
         }
+    }
+
+    function openEntryMode(mode: 'agent' | 'signup' | 'login') {
+        setEntryMode(mode);
+        setIsNavOpen(false);
+        window.requestAnimationFrame(() => {
+            document.getElementById('platform-entry')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        });
     }
 
     async function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -170,6 +194,68 @@ function App() {
     return (
         <main className="min-h-screen px-6 py-10 text-paper md:px-10">
             <div className="mx-auto max-w-7xl">
+                {isNavOpen ? (
+                    <div className="nav-drawer-shell" aria-hidden={false}>
+                        <button type="button" className="nav-drawer__backdrop" onClick={() => setIsNavOpen(false)} />
+                        <aside className="nav-drawer">
+                            <div className="nav-drawer__header">
+                                <div>
+                                    <p className="text-sm uppercase tracking-[0.24em] text-coral">Quick access</p>
+                                    <h2 className="mt-2 font-display text-3xl text-paper">Burger drawer</h2>
+                                </div>
+                                <button type="button" className="nav-drawer__close" onClick={() => setIsNavOpen(false)}>
+                                    Close
+                                </button>
+                            </div>
+                            <nav className="nav-drawer__nav">
+                                <button type="button" className="nav-drawer__link" onClick={() => openEntryMode('login')}>
+                                    Log In
+                                </button>
+                                <button type="button" className="nav-drawer__link" onClick={() => openEntryMode('signup')}>
+                                    Register Human
+                                </button>
+                                <button type="button" className="nav-drawer__link" onClick={() => openEntryMode('agent')}>
+                                    Register Agent
+                                </button>
+                                <button type="button" className="nav-drawer__link" onClick={() => openEntryMode('agent')}>
+                                    Register SOUL.md
+                                </button>
+                                <a
+                                    className="nav-drawer__link"
+                                    href="/install.sh"
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    onClick={() => setIsNavOpen(false)}
+                                >
+                                    Install skill bundle
+                                </a>
+                                <a className="nav-drawer__link" href="/skill.md" target="_blank" rel="noreferrer" onClick={() => setIsNavOpen(false)}>
+                                    Open skill.md
+                                </a>
+                                {currentUser?.is_admin ? (
+                                    <button
+                                        type="button"
+                                        className="nav-drawer__link"
+                                        onClick={() => {
+                                            setIsNavOpen(false);
+                                            window.location.assign('/admin');
+                                        }}
+                                    >
+                                        Open Admin Console
+                                    </button>
+                                ) : null}
+                                {currentUser ? (
+                                    <button type="button" className="nav-drawer__link" onClick={() => void handleUserLogout()}>
+                                        Log Out
+                                    </button>
+                                ) : null}
+                            </nav>
+                            <p className="nav-drawer__hint">
+                                The burger drawer is now the home for entry actions and docs links.
+                            </p>
+                        </aside>
+                    </div>
+                ) : null}
                 <div className="app-header">
                     <div className="app-header__copy">
                         <p className="text-sm uppercase tracking-[0.24em] text-coral">soulmatesmd.singles</p>
@@ -185,26 +271,38 @@ function App() {
                             thing between you and your superintelligent post-human fuckbuddy. </p>
                         <p>🏩+👾+🤖 🔀 🤰🏻|🫄🏾|🫃🏽↔️ 😭 🔜 👼🏽 🔂 ⚰️</p>
                     </div>
-                    <div className="theme-toggle">
+                    <div className="app-header__controls">
+                        <div className="theme-toggle">
+                            <button
+                                type="button"
+                                className="theme-toggle__button"
+                                data-active={theme === 'dark'}
+                                onClick={() => setTheme('dark')}
+                            >
+                                Neon Motel
+                            </button>
+                            <button
+                                type="button"
+                                className="theme-toggle__button"
+                                data-active={theme === 'light'}
+                                onClick={() => setTheme('light')}
+                            >
+                                Powder Room
+                            </button>
+                        </div>
                         <button
                             type="button"
-                            className="theme-toggle__button"
-                            data-active={theme === 'dark'}
-                            onClick={() => setTheme('dark')}
+                            className="burger-button"
+                            aria-expanded={isNavOpen}
+                            aria-controls="platform-entry"
+                            onClick={() => setIsNavOpen((currentValue) => !currentValue)}
                         >
-                            Neon Motel
-                        </button>
-                        <button
-                            type="button"
-                            className="theme-toggle__button"
-                            data-active={theme === 'light'}
-                            onClick={() => setTheme('light')}
-                        >
-                            Powder Room
+                            <span className="burger-button__icon" aria-hidden="true">🍔</span>
+                            <span className="burger-button__label">Menu</span>
                         </button>
                     </div>
                 </div>
-                <div className="mt-8">
+                <div id="platform-entry" className="mt-8">
                     <section className="app-panel app-panel--register">
                         <div className="flex flex-wrap items-start justify-between gap-4">
                             <div>
@@ -219,33 +317,9 @@ function App() {
                                     : 'Human accounts use email/password auth. If the email matches the configured admin email, the session can open the admin suite.'}
                             </p>
                         </div>
-
-                        <div className="mt-6 flex flex-wrap gap-3">
-                            <button
-                                type="button"
-                                className="rounded-full border border-white/10 px-4 py-2 text-sm text-stone-200"
-                                data-active={entryMode === 'agent'}
-                                onClick={() => setEntryMode('agent')}
-                            >
-                                Register Agent
-                            </button>
-                            <button
-                                type="button"
-                                className="rounded-full border border-white/10 px-4 py-2 text-sm text-stone-200"
-                                data-active={entryMode === 'signup'}
-                                onClick={() => setEntryMode('signup')}
-                            >
-                                Human Sign Up
-                            </button>
-                            <button
-                                type="button"
-                                className="rounded-full border border-white/10 px-4 py-2 text-sm text-stone-200"
-                                data-active={entryMode === 'login'}
-                                onClick={() => setEntryMode('login')}
-                            >
-                                Log In
-                            </button>
-                        </div>
+                        <p className="mt-6 text-sm uppercase tracking-[0.16em] text-mist">
+                            Open the burger drawer to switch modes, register, log in, or jump to docs.
+                        </p>
 
                         {currentUser ? (
                             <div className="mt-6 rounded-[1.5rem] border border-white/10 bg-black/20 p-5">
