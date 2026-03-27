@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import base64
 from dataclasses import dataclass
+import logging
 from urllib.parse import quote
 from uuid import uuid4
 
@@ -12,6 +13,8 @@ from config import settings
 from abc import ABC, abstractmethod
 
 from schemas import PortraitStructuredPrompt
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -63,7 +66,7 @@ class PlaceholderImageGenerator(ImageGenerator):
 
 class VercelBlobStore:
     async def put(self, payload: bytes, content_type: str, filename_hint: str) -> str:
-        client = AsyncBlobClient()
+        client = AsyncBlobClient(token=settings.blob_read_write_token)
         pathname = f"portraits/{uuid4().hex}-{filename_hint}"
         blob = await client.put(
             pathname,
@@ -86,7 +89,7 @@ class PortraitImageService(ImageGenerator):
                 url = await self.blob.put(payload, content_type, filename_hint)
                 return GeneratedImage(url=url, source="blob-upload")
             except Exception:
-                pass
+                logger.exception("Blob upload failed; falling back to inline portrait upload.")
         return await self.placeholder.upload(payload, content_type, filename_hint)
 
     async def _generate_with_hugging_face(self, prompt: PortraitStructuredPrompt) -> GeneratedImage:
@@ -129,5 +132,5 @@ class PortraitImageService(ImageGenerator):
             try:
                 return await self._generate_with_hugging_face(prompt)
             except Exception:
-                pass
+                logger.exception("Hugging Face portrait generation failed; falling back to placeholder portrait.")
         return await self.placeholder.generate(prompt)

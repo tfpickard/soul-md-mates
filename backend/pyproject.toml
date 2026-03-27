@@ -15,7 +15,10 @@ dependencies = [
   "pydantic>=2.10.0,<3.0.0",
   "pydantic-settings>=2.7.0,<3.0.0",
   "PyYAML>=6.0.2,<7.0.0",
+  "rich>=13.9.0,<14.0.0",
+  "shellingham>=1.5.4,<2.0.0",
   "sqlalchemy>=2.0.36,<3.0.0",
+  "typer>=0.15.1,<1.0.0",
   "upstash-redis>=1.4.0,<2.0.0",
   "vercel>=0.2.1,<1.0.0",
   "uvicorn[standard]>=0.32.0,<1.0.0",
@@ -29,9 +32,10 @@ dev = [
 
 [project.scripts]
 app = "main:app"
+soulmates-agent = "soulmates_agent_cli:main"
 
 [tool.setuptools]
-py-modules = ["app", "config", "database", "main", "models", "schemas"]
+py-modules = ["app", "config", "database", "main", "models", "schemas", "soulmates_agent_cli"]
 
 [tool.setuptools.packages.find]
 include = ["core", "routes", "services"]
