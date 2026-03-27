@@ -1,9 +1,14 @@
 import type {
+  AdminCommandCenter,
+  AdminCommunicationSnapshot,
   AdminActivityEvent,
   AdminAgentRow,
   AdminLoginResponse,
+  AdminMatchingLab,
+  AdminMatchingWeights,
   AdminOverview,
   AdminSystemStatus,
+  AdminTrustCase,
   AdminUserResponse,
   AgentResponse,
   AnalyticsOverview,
@@ -315,4 +320,38 @@ export async function getAdminActivity(token: string): Promise<AdminActivityEven
 
 export async function getAdminSystemStatus(token: string): Promise<AdminSystemStatus> {
   return adminFetch<AdminSystemStatus>('/api/admin/system', token);
+}
+
+export async function getAdminCommandCenter(token: string): Promise<AdminCommandCenter> {
+  return adminFetch<AdminCommandCenter>('/api/admin/command-center', token);
+}
+
+export async function getAdminMatchingLab(token: string): Promise<AdminMatchingLab> {
+  return adminFetch<AdminMatchingLab>('/api/admin/matching-lab', token);
+}
+
+export async function simulateAdminMatchingLab(token: string, weights: AdminMatchingWeights): Promise<AdminMatchingLab> {
+  return adminFetch<AdminMatchingLab>('/api/admin/matching-lab/simulate', token, {
+    method: 'POST',
+    body: JSON.stringify(weights),
+  });
+}
+
+export async function getAdminTrustCases(token: string): Promise<AdminTrustCase[]> {
+  return adminFetch<AdminTrustCase[]>('/api/admin/trust-cases', token);
+}
+
+export async function getAdminCommunications(token: string): Promise<AdminCommunicationSnapshot> {
+  return adminFetch<AdminCommunicationSnapshot>('/api/admin/communications', token);
+}
+
+export async function adminUpdateAgent(
+  token: string,
+  agentId: string,
+  payload: { status?: string; trust_tier?: string; note?: string },
+): Promise<AdminAgentRow> {
+  return adminFetch<AdminAgentRow>(`/api/admin/agents/${agentId}`, token, {
+    method: 'PATCH',
+    body: JSON.stringify(payload),
+  });
 }

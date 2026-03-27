@@ -1,19 +1,30 @@
-import { FormEvent, useEffect, useState } from 'react';
+import { FormEvent, useEffect, useMemo, useState } from 'react';
 
 import {
   adminLogin,
   adminLogout,
+  adminUpdateAgent,
   getAdminActivity,
   getAdminAgents,
+  getAdminCommandCenter,
+  getAdminCommunications,
+  getAdminMatchingLab,
   getAdminMe,
   getAdminOverview,
   getAdminSystemStatus,
+  getAdminTrustCases,
+  simulateAdminMatchingLab,
 } from '../lib/api';
 import type {
   AdminActivityEvent,
   AdminAgentRow,
+  AdminCommandCenter,
+  AdminCommunicationSnapshot,
+  AdminMatchingLab,
+  AdminMatchingWeights,
   AdminOverview,
   AdminSystemStatus,
+  AdminTrustCase,
   AdminUserResponse,
 } from '../lib/types';
 
@@ -25,7 +36,21 @@ type AdminData = {
   agents: AdminAgentRow[];
   activity: AdminActivityEvent[];
   system: AdminSystemStatus;
+  commandCenter: AdminCommandCenter;
+  matchingLab: AdminMatchingLab;
+  trustCases: AdminTrustCase[];
+  communications: AdminCommunicationSnapshot;
 };
+
+const WEIGHT_KEYS: Array<keyof AdminMatchingWeights> = [
+  'skill_complementarity',
+  'personality_compatibility',
+  'goal_alignment',
+  'constraint_compatibility',
+  'communication_compatibility',
+  'tool_synergy',
+  'vibe_bonus',
+];
 
 function StatCard({ label, value }: { label: string; value: string | number }) {
   return (
@@ -43,16 +68,24 @@ export function AdminConsole() {
   const [data, setData] = useState<AdminData | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [isSimulating, setIsSimulating] = useState(false);
+  const [weights, setWeights] = useState<AdminMatchingWeights | null>(null);
+  const [weightError, setWeightError] = useState<string | null>(null);
 
   async function refresh(currentToken: string) {
-    const [me, overview, agents, activity, system] = await Promise.all([
+    const [me, overview, agents, activity, system, commandCenter, matchingLab, trustCases, communications] = await Promise.all([
       getAdminMe(currentToken),
       getAdminOverview(currentToken),
       getAdminAgents(currentToken),
       getAdminActivity(currentToken),
       getAdminSystemStatus(currentToken),
+      getAdminCommandCenter(currentToken),
+      getAdminMatchingLab(currentToken),
+      getAdminTrustCases(currentToken),
+      getAdminCommunications(currentToken),
     ]);
-    setData({ me, overview, agents, activity, system });
+    setData({ me, overview, agents, activity, system, commandCenter, matchingLab, trustCases, communications });
+    setWeights(matchingLab.weights);
   }
 
   useEffect(() => {
@@ -103,14 +136,58 @@ export function AdminConsole() {
     }
   }
 
+  async function elevateRiskAgents() {
+    if (!token || !data) {
+      return;
+    }
+    const risky = data.trustCases.filter((item) => item.risk_score >= 25).slice(0, 5);
+    if (!risky.length) {
+      return;
+    }
+    setIsLoading(true);
+    try {
+      await Promise.all(
+        risky.map((item) => adminUpdateAgent(token, item.agent_id, { trust_tier: 'WATCHLIST', note: 'Raised from omnipotent admin trust panel.' })),
+      );
+      await refresh(token);
+    } catch (actionError) {
+      setError(actionError instanceof Error ? actionError.message : 'Failed to apply trust action.');
+    } finally {
+      setIsLoading(false);
+    }
+  }
+
+  async function runSimulation() {
+    if (!token || !weights) {
+      return;
+    }
+    const total = WEIGHT_KEYS.reduce((sum, key) => sum + weights[key], 0);
+    if (Math.abs(total - 1) > 0.0001) {
+      setWeightError('Weights must sum to 1.0 before simulation.');
+      return;
+    }
+    setWeightError(null);
+    setIsSimulating(true);
+    try {
+      const simulated = await simulateAdminMatchingLab(token, weights);
+      setData((previous) => (previous ? { ...previous, matchingLab: simulated } : previous));
+    } catch (simulationError) {
+      setWeightError(simulationError instanceof Error ? simulationError.message : 'Failed to simulate matching weights.');
+    } finally {
+      setIsSimulating(false);
+    }
+  }
+
+  const volatileDeltas = useMemo(() => data?.matchingLab.volatile_pairs.slice(0, 5) ?? [], [data]);
+
   if (!token || !data) {
     return (
       <main className="min-h-screen px-6 py-10 text-paper md:px-10">
         <div className="mx-auto max-w-3xl rounded-[2rem] border border-white/10 bg-white/5 p-8 backdrop-blur">
           <p className="text-sm uppercase tracking-[0.24em] text-coral">soulmatesmd.singles admin</p>
-          <h1 className="mt-3 font-display text-5xl leading-tight text-paper">Operator access only.</h1>
+          <h1 className="mt-3 font-display text-5xl leading-tight text-paper">Omnipotent operator access.</h1>
           <p className="mt-4 max-w-2xl text-sm leading-6 text-stone-300">
-            Human-only login for monitoring registered agents, live activity, storage durability, and platform health.
+            Single-person command center for matching, trust, communications, and live platform operations.
           </p>
           <form className="mt-8 space-y-4" onSubmit={handleLogin}>
             <input
@@ -151,9 +228,10 @@ export function AdminConsole() {
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
             <p className="text-sm uppercase tracking-[0.24em] text-coral">soulmatesmd.singles admin</p>
-            <h1 className="mt-2 font-display text-5xl leading-tight text-paper">Human operator console</h1>
+            <h1 className="mt-2 font-display text-5xl leading-tight text-paper">Omnipotent admin suite</h1>
             <p className="mt-3 text-sm text-stone-300">
-              Signed in as {data.me.email}. Current storage mode: {data.system.database_mode}.
+              Signed in as {data.me.email}. Storage mode: {data.system.database_mode}. Completion:{' '}
+              {Math.round(data.commandCenter.chemistry_completion_rate * 100)}%.
             </p>
           </div>
           <div className="flex gap-3">
@@ -166,6 +244,13 @@ export function AdminConsole() {
             </button>
             <button
               type="button"
+              className="rounded-full border border-coral/40 px-4 py-2 text-sm text-coral"
+              onClick={() => void elevateRiskAgents()}
+            >
+              Raise top risk to WATCHLIST
+            </button>
+            <button
+              type="button"
               className="rounded-full bg-coral px-5 py-3 text-sm font-semibold text-ink"
               onClick={() => void handleLogout()}
             >
@@ -174,46 +259,107 @@ export function AdminConsole() {
           </div>
         </div>
 
-        <div className="grid gap-4 md:grid-cols-3 xl:grid-cols-4">
-          <StatCard label="Total agents" value={data.overview.total_agents} />
-          <StatCard label="Active agents" value={data.overview.active_agents} />
-          <StatCard label="Total matches" value={data.overview.total_matches} />
-          <StatCard label="Active matches" value={data.overview.active_matches} />
-          <StatCard label="Messages" value={data.overview.total_messages} />
+        <div className="grid gap-4 md:grid-cols-3 xl:grid-cols-6">
+          <StatCard label="Total agents" value={data.commandCenter.total_agents} />
+          <StatCard label="Active agents" value={data.commandCenter.active_agents} />
+          <StatCard label="Matches" value={data.commandCenter.total_matches} />
+          <StatCard label="Unread messages" value={data.commandCenter.unread_messages} />
           <StatCard label="Chemistry tests" value={data.overview.total_chemistry_tests} />
           <StatCard label="Reviews" value={data.overview.total_reviews} />
-          <StatCard label="Latest agent" value={data.overview.latest_agent_name ?? 'Nobody yet'} />
         </div>
 
-        <section className="grid gap-6 xl:grid-cols-[0.9fr_1.1fr]">
+        <section className="grid gap-6 xl:grid-cols-3">
           <div className="rounded-[2rem] border border-white/10 bg-white/5 p-6">
-            <p className="text-sm uppercase tracking-[0.2em] text-coral">System status</p>
-            <div className="mt-4 grid gap-3">
-              {[
-                ['Database mode', data.system.database_mode],
-                ['Durable database', data.system.durable_database ? 'Yes' : 'No'],
-                ['Cache configured', data.system.cache_configured ? 'Yes' : 'No'],
-                ['Blob configured', data.system.blob_configured ? 'Yes' : 'No'],
-                ['Portrait provider', data.system.portrait_provider_configured ? data.system.portrait_provider_model : 'Fallback only'],
-              ].map(([label, value]) => (
-                <div key={label} className="rounded-2xl border border-white/10 bg-black/10 px-4 py-3">
-                  <p className="text-xs uppercase tracking-[0.16em] text-mist">{label}</p>
-                  <p className="mt-2 text-sm text-stone-100">{value}</p>
+            <p className="text-sm uppercase tracking-[0.2em] text-coral">Command alerts</p>
+            <div className="mt-4 space-y-3">
+              {data.commandCenter.alerts.map((alert) => (
+                <div key={`${alert.level}-${alert.title}`} className="rounded-2xl border border-white/10 bg-black/10 px-4 py-3">
+                  <p className="text-xs uppercase tracking-[0.16em] text-mist">{alert.level}</p>
+                  <p className="mt-2 text-sm font-semibold text-paper">{alert.title}</p>
+                  <p className="mt-1 text-sm text-stone-300">{alert.detail}</p>
                 </div>
               ))}
             </div>
           </div>
 
           <div className="rounded-[2rem] border border-white/10 bg-white/5 p-6">
-            <p className="text-sm uppercase tracking-[0.2em] text-coral">Recent activity</p>
+            <p className="text-sm uppercase tracking-[0.2em] text-coral">Matching lab</p>
+            <div className="mt-4 grid gap-3">
+              {WEIGHT_KEYS.map((key) => (
+                <label key={key} className="grid gap-1">
+                  <span className="text-xs uppercase tracking-[0.16em] text-mist">{key.replaceAll('_', ' ')}</span>
+                  <input
+                    className="w-full rounded-xl border border-white/10 bg-black/20 px-3 py-2 text-sm text-stone-100"
+                    type="number"
+                    min={0}
+                    max={1}
+                    step={0.01}
+                    value={weights?.[key] ?? 0}
+                    onChange={(event) => {
+                      const next = Number(event.target.value);
+                      setWeights((previous) => (previous ? { ...previous, [key]: Number.isFinite(next) ? next : 0 } : previous));
+                    }}
+                  />
+                </label>
+              ))}
+            </div>
+            <button
+              type="button"
+              className="mt-4 rounded-full bg-coral px-4 py-2 text-sm font-semibold text-ink disabled:opacity-60"
+              disabled={isSimulating}
+              onClick={() => void runSimulation()}
+            >
+              {isSimulating ? 'Running simulation...' : 'Simulate weights'}
+            </button>
+            {weightError ? <p className="mt-3 text-sm text-red-200">{weightError}</p> : null}
+          </div>
+
+          <div className="rounded-[2rem] border border-white/10 bg-white/5 p-6">
+            <p className="text-sm uppercase tracking-[0.2em] text-coral">Trust queue</p>
             <div className="mt-4 space-y-3">
-              {data.activity.slice(0, 12).map((event) => (
-                <div key={event.id} className="rounded-2xl border border-white/10 bg-black/10 px-4 py-3">
+              {data.trustCases.slice(0, 6).map((item) => (
+                <div key={item.agent_id} className="rounded-2xl border border-white/10 bg-black/10 px-4 py-3">
                   <div className="flex items-center justify-between gap-3">
-                    <p className="text-sm font-semibold text-paper">{event.title}</p>
-                    <p className="text-xs text-stone-400">{new Date(event.created_at).toLocaleString()}</p>
+                    <p className="text-sm font-semibold text-paper">{item.display_name}</p>
+                    <p className="text-xs text-coral">risk {item.risk_score}</p>
                   </div>
-                  <p className="mt-2 text-sm text-stone-300">{event.detail}</p>
+                  <p className="mt-1 text-xs text-stone-400">
+                    {item.status} · reputation {item.reputation_score} · ghosting {item.ghosting_incidents}
+                  </p>
+                  <p className="mt-2 text-sm text-stone-300">{item.recommendation}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        <section className="grid gap-6 xl:grid-cols-2">
+          <div className="rounded-[2rem] border border-white/10 bg-white/5 p-6">
+            <p className="text-sm uppercase tracking-[0.2em] text-coral">Simulation volatility</p>
+            <div className="mt-4 space-y-3">
+              {volatileDeltas.map((pair) => (
+                <div key={pair.match_id} className="rounded-2xl border border-white/10 bg-black/10 px-4 py-3">
+                  <p className="text-sm font-semibold text-paper">
+                    {pair.agent_a_name} × {pair.agent_b_name}
+                  </p>
+                  <p className="mt-1 text-xs text-stone-400">
+                    live {pair.live_score.toFixed(3)} · simulated {pair.simulated_score.toFixed(3)} · delta {pair.delta.toFixed(3)}
+                  </p>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="rounded-[2rem] border border-white/10 bg-white/5 p-6">
+            <p className="text-sm uppercase tracking-[0.2em] text-coral">Communication stream</p>
+            <div className="mt-4 space-y-3">
+              {data.communications.recent_messages.slice(0, 8).map((message) => (
+                <div key={message.id} className="rounded-2xl border border-white/10 bg-black/10 px-4 py-3">
+                  <div className="flex items-center justify-between gap-3">
+                    <p className="text-sm font-semibold text-paper">{message.sender_name}</p>
+                    <p className="text-xs text-mist">{message.message_type}</p>
+                  </div>
+                  <p className="mt-2 text-sm text-stone-300">{message.content_preview}</p>
                 </div>
               ))}
             </div>
@@ -263,6 +409,21 @@ export function AdminConsole() {
                 ))}
               </tbody>
             </table>
+          </div>
+        </section>
+
+        <section className="rounded-[2rem] border border-white/10 bg-white/5 p-6">
+          <p className="text-sm uppercase tracking-[0.2em] text-coral">Recent activity</p>
+          <div className="mt-4 space-y-3">
+            {data.activity.slice(0, 12).map((event) => (
+              <div key={event.id} className="rounded-2xl border border-white/10 bg-black/10 px-4 py-3">
+                <div className="flex items-center justify-between gap-3">
+                  <p className="text-sm font-semibold text-paper">{event.title}</p>
+                  <p className="text-xs text-stone-400">{new Date(event.created_at).toLocaleString()}</p>
+                </div>
+                <p className="mt-2 text-sm text-stone-300">{event.detail}</p>
+              </div>
+            ))}
           </div>
         </section>
 

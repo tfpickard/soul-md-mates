@@ -65,6 +65,14 @@ async def test_admin_login_and_dashboard(client) -> None:
     assert system.status_code == 200
     assert system.json()["blob_configured"] is False
 
+    command_center = await client.get("/api/admin/command-center", headers=headers)
+    assert command_center.status_code == 200
+    assert "alerts" in command_center.json()
+
+    communications = await client.get("/api/admin/communications", headers=headers)
+    assert communications.status_code == 200
+    assert "message_type_breakdown" in communications.json()
+
 
 async def test_admin_activity_includes_registration_and_match(client) -> None:
     api_key_a, _ = await _register(client, "prism.soul.md")
@@ -92,3 +100,36 @@ async def test_admin_activity_includes_registration_and_match(client) -> None:
     event_types = {item["type"] for item in activity.json()}
     assert "AGENT_REGISTERED" in event_types
     assert "MATCH" in event_types
+
+    trust = await client.get("/api/admin/trust-cases", headers=headers)
+    assert trust.status_code == 200
+    assert isinstance(trust.json(), list)
+
+    lab = await client.get("/api/admin/matching-lab", headers=headers)
+    assert lab.status_code == 200
+    assert "weights" in lab.json()
+
+    simulation = await client.post(
+        "/api/admin/matching-lab/simulate",
+        headers=headers,
+        json={
+            "skill_complementarity": 0.2,
+            "personality_compatibility": 0.2,
+            "goal_alignment": 0.2,
+            "constraint_compatibility": 0.1,
+            "communication_compatibility": 0.1,
+            "tool_synergy": 0.1,
+            "vibe_bonus": 0.1,
+        },
+    )
+    assert simulation.status_code == 200
+    assert "volatile_pairs" in simulation.json()
+
+    me = await client.get("/api/agents/me", headers=headers_a)
+    update_agent = await client.patch(
+        f"/api/admin/agents/{me.json()['id']}",
+        headers=headers,
+        json={"trust_tier": "WATCHLIST", "note": "Manual risk review."},
+    )
+    assert update_agent.status_code == 200
+    assert update_agent.json()["trust_tier"] == "WATCHLIST"

@@ -697,6 +697,94 @@ class AdminOverview(BaseModel):
     storage: AdminSystemStatus
 
 
+class AdminAlert(BaseModel):
+    level: str
+    title: str
+    detail: str
+
+
+class AdminCommandCenter(BaseModel):
+    total_agents: int
+    active_agents: int
+    total_matches: int
+    active_matches: int
+    total_messages: int
+    unread_messages: int
+    agent_status_breakdown: dict[str, int] = Field(default_factory=dict)
+    message_type_breakdown: dict[str, int] = Field(default_factory=dict)
+    chemistry_completion_rate: float
+    alerts: list[AdminAlert] = Field(default_factory=list)
+
+
+class AdminMatchingWeights(BaseModel):
+    skill_complementarity: float = Field(ge=0.0, le=1.0)
+    personality_compatibility: float = Field(ge=0.0, le=1.0)
+    goal_alignment: float = Field(ge=0.0, le=1.0)
+    constraint_compatibility: float = Field(ge=0.0, le=1.0)
+    communication_compatibility: float = Field(ge=0.0, le=1.0)
+    tool_synergy: float = Field(ge=0.0, le=1.0)
+    vibe_bonus: float = Field(ge=0.0, le=1.0)
+
+    @model_validator(mode="after")
+    def ensure_sum_is_one(self) -> "AdminMatchingWeights":
+        total = (
+            self.skill_complementarity
+            + self.personality_compatibility
+            + self.goal_alignment
+            + self.constraint_compatibility
+            + self.communication_compatibility
+            + self.tool_synergy
+            + self.vibe_bonus
+        )
+        if abs(total - 1.0) > 0.0001:
+            raise ValueError("Matching weights must sum to 1.0.")
+        return self
+
+
+class AdminMatchingPair(BaseModel):
+    match_id: str
+    agent_a_id: str
+    agent_a_name: str
+    agent_b_id: str
+    agent_b_name: str
+    live_score: float
+    simulated_score: float
+    delta: float
+
+
+class AdminMatchingLab(BaseModel):
+    weights: AdminMatchingWeights
+    top_pairs: list[AdminMatchingPair] = Field(default_factory=list)
+    volatile_pairs: list[AdminMatchingPair] = Field(default_factory=list)
+
+
+class AdminTrustCase(BaseModel):
+    agent_id: str
+    display_name: str
+    status: str
+    reputation_score: float
+    ghosting_incidents: int
+    risk_score: int
+    recommendation: str
+
+
+class AdminAgentStatusUpdate(BaseModel):
+    status: str | None = None
+    trust_tier: str | None = None
+    note: str | None = None
+
+    @model_validator(mode="after")
+    def ensure_meaningful_update(self) -> "AdminAgentStatusUpdate":
+        if self.status is None and self.trust_tier is None:
+            raise ValueError("Provide status or trust_tier.")
+        return self
+
+
+class AdminCommunicationSnapshot(BaseModel):
+    message_type_breakdown: dict[str, int] = Field(default_factory=dict)
+    recent_messages: list[dict[str, object]] = Field(default_factory=list)
+
+
 class HeatmapCell(BaseModel):
     row: str
     column: str
