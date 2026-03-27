@@ -10,7 +10,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
-        env_file=".env",
+        env_file=(".env.local", ".env"),
         env_file_encoding="utf-8",
         extra="ignore",
     )
@@ -41,6 +41,16 @@ class Settings(BaseSettings):
     admin_password: str | None = None
     admin_session_ttl_hours: int = 24
     admin_session_secret: str | None = None
+    password_reset_ttl_hours: int = 2
+    password_reset_secret: str | None = None
+    frontend_base_url: str = "http://localhost:5173"
+    smtp_host: str | None = None
+    smtp_port: int = 587
+    smtp_username: str | None = None
+    smtp_password: str | None = None
+    smtp_from_email: str | None = None
+    smtp_use_tls: bool = False
+    smtp_use_starttls: bool = True
     hf_token: str | None = None
     hf_image_model: str = "ByteDance/SDXL-Lightning"
     blob_read_write_token: str | None = None
@@ -119,6 +129,14 @@ class Settings(BaseSettings):
     @property
     def has_portrait_provider(self) -> bool:
         return bool(self.hf_token)
+
+    @property
+    def effective_password_reset_secret(self) -> str:
+        return self.password_reset_secret or self.admin_session_secret or "password-reset-secret"
+
+    @property
+    def has_smtp_email(self) -> bool:
+        return bool(self.smtp_host and self.smtp_from_email)
 
     @property
     def resolved_cors_origin_regex(self) -> str | None:

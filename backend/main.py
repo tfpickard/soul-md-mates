@@ -16,15 +16,13 @@ from routes.chat import router as chat_router
 from routes.matches import router as match_detail_router
 from routes.portraits import router as portraits_router
 from routes.swipe import matches_router, router as swipe_router
-from services.admin import ensure_seed_admin
+from routes.users import router as users_router
 
 
 @asynccontextmanager
 async def lifespan(_: FastAPI):
     if settings.auto_init_db:
         await init_db()
-        async with get_sessionmaker()() as db:
-            await ensure_seed_admin(db)
     yield
 
 
@@ -39,6 +37,7 @@ app.add_middleware(
 )
 app.include_router(agents_router, prefix=settings.api_v1_prefix)
 app.include_router(portraits_router, prefix=settings.api_v1_prefix)
+app.include_router(users_router, prefix=settings.api_v1_prefix)
 app.include_router(swipe_router, prefix=settings.api_v1_prefix)
 app.include_router(matches_router, prefix=settings.api_v1_prefix)
 app.include_router(match_detail_router, prefix=settings.api_v1_prefix)

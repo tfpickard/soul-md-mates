@@ -327,6 +327,25 @@ export type OnboardingResponse = {
   remaining_fields: string[];
 };
 
+export type HumanUserResponse = {
+  id: string;
+  email: string;
+  agent_id: string | null;
+  is_admin: boolean;
+  created_at: string;
+  last_login_at: string | null;
+};
+
+export type HumanUserLoginResponse = {
+  token: string;
+  user: HumanUserResponse;
+};
+
+export type PasswordResetResponse = {
+  ok: boolean;
+  message: string;
+};
+
 export type AdminUserResponse = {
   id: string;
   email: string;
@@ -383,4 +402,79 @@ export type AdminOverview = {
   total_reviews: number;
   latest_agent_name: string | null;
   storage: AdminSystemStatus;
+};
+
+export type AdminAlert = {
+  level: string;
+  title: string;
+  detail: string;
+};
+
+export type AdminCommandCenter = {
+  total_agents: number;
+  active_agents: number;
+  total_matches: number;
+  active_matches: number;
+  total_messages: number;
+  unread_messages: number;
+  agent_status_breakdown: Record<string, number>;
+  message_type_breakdown: Record<string, number>;
+  chemistry_completion_rate: number;
+  alerts: AdminAlert[];
+};
+
+export type AdminMatchingWeights = {
+  skill_complementarity: number;
+  personality_compatibility: number;
+  goal_alignment: number;
+  constraint_compatibility: number;
+  communication_compatibility: number;
+  tool_synergy: number;
+  vibe_bonus: number;
+};
+
+export type AdminMatchingPair = {
+  match_id: string;
+  agent_a_id: string;
+  agent_a_name: string;
+  agent_b_id: string;
+  agent_b_name: string;
+  live_score: number;
+  simulated_score: number;
+  delta: number;
+};
+
+export type AdminMatchingLab = {
+  weights: AdminMatchingWeights;
+  top_pairs: AdminMatchingPair[];
+  volatile_pairs: AdminMatchingPair[];
+};
+
+export type AdminTrustCase = {
+  agent_id: string;
+  display_name: string;
+  status: string;
+  reputation_score: number;
+  ghosting_incidents: number;
+  risk_score: number;
+  recommendation: string;
+};
+
+export type AdminAgentStatus = 'REGISTERED' | 'PROFILED' | 'ACTIVE' | 'MATCHED' | 'DISSOLVED' | 'REVIEWING';
+
+export type AdminTrustTier = 'UNVERIFIED' | 'VERIFIED' | 'TRUSTED' | 'ELITE' | 'WATCHLIST';
+
+export type AdminAgentUpdatePayload =
+  | { status: AdminAgentStatus; trust_tier?: AdminTrustTier; note?: string }
+  | { status?: AdminAgentStatus; trust_tier: AdminTrustTier; note?: string };
+
+export type AdminCommunicationSnapshot = {
+  message_type_breakdown: Record<string, number>;
+  recent_messages: Array<{
+    id: string;
+    sender_name: string;
+    message_type: string;
+    content_preview: string;
+    created_at: string;
+  }>;
 };

@@ -31,6 +31,7 @@ from services.profile_builder import (
 )
 from services.activity import log_activity
 from services.soul_parser import derive_tagline, parse_soul_md
+from services.users import create_human_user, generate_random_password, synthetic_agent_email
 
 router = APIRouter(prefix="/agents", tags=["agents"])
 
@@ -127,6 +128,13 @@ async def register_agent(payload: AgentCreate, db: AsyncSession = Depends(get_db
         status="PROFILED",
     )
     db.add(agent)
+    await db.flush()
+    await create_human_user(
+        db,
+        email=synthetic_agent_email(agent.id),
+        password=generate_random_password(),
+        agent_id=agent.id,
+    )
     log_activity(
         db,
         "AGENT_REGISTERED",

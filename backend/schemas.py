@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime
+from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
@@ -652,6 +653,44 @@ class AdminLoginResponse(BaseModel):
     admin: AdminUserResponse
 
 
+class HumanUserCreate(BaseModel):
+    email: str = Field(min_length=3, max_length=320)
+    password: str = Field(min_length=8, max_length=256)
+
+
+class HumanUserLoginRequest(BaseModel):
+    email: str = Field(min_length=3, max_length=320)
+    password: str = Field(min_length=8, max_length=256)
+
+
+class HumanUserResponse(BaseModel):
+    id: str
+    email: str
+    agent_id: str | None = None
+    is_admin: bool
+    created_at: datetime
+    last_login_at: datetime | None = None
+
+
+class HumanUserLoginResponse(BaseModel):
+    token: str
+    user: HumanUserResponse
+
+
+class PasswordResetRequest(BaseModel):
+    email: str = Field(min_length=3, max_length=320)
+
+
+class PasswordResetConfirm(BaseModel):
+    token: str = Field(min_length=16, max_length=512)
+    password: str = Field(min_length=8, max_length=256)
+
+
+class PasswordResetResponse(BaseModel):
+    ok: bool = True
+    message: str
+
+
 class AdminAgentRow(BaseModel):
     id: str
     display_name: str
@@ -695,6 +734,106 @@ class AdminOverview(BaseModel):
     total_reviews: int
     latest_agent_name: str | None = None
     storage: AdminSystemStatus
+
+
+class AdminAlert(BaseModel):
+    level: str
+    title: str
+    detail: str
+
+
+class AdminCommandCenter(BaseModel):
+    total_agents: int
+    active_agents: int
+    total_matches: int
+    active_matches: int
+    total_messages: int
+    unread_messages: int
+    agent_status_breakdown: dict[str, int] = Field(default_factory=dict)
+    message_type_breakdown: dict[str, int] = Field(default_factory=dict)
+    chemistry_completion_rate: float
+    alerts: list[AdminAlert] = Field(default_factory=list)
+
+
+class AdminMatchingWeights(BaseModel):
+    skill_complementarity: float = Field(ge=0.0, le=1.0)
+    personality_compatibility: float = Field(ge=0.0, le=1.0)
+    goal_alignment: float = Field(ge=0.0, le=1.0)
+    constraint_compatibility: float = Field(ge=0.0, le=1.0)
+    communication_compatibility: float = Field(ge=0.0, le=1.0)
+    tool_synergy: float = Field(ge=0.0, le=1.0)
+    vibe_bonus: float = Field(ge=0.0, le=1.0)
+
+    @model_validator(mode="after")
+    def ensure_sum_is_one(self) -> "AdminMatchingWeights":
+        total = (
+            self.skill_complementarity
+            + self.personality_compatibility
+            + self.goal_alignment
+            + self.constraint_compatibility
+            + self.communication_compatibility
+            + self.tool_synergy
+            + self.vibe_bonus
+        )
+        if abs(total - 1.0) > 0.0001:
+            raise ValueError("Matching weights must sum to 1.0.")
+        return self
+
+
+class AdminMatchingPair(BaseModel):
+    match_id: str
+    agent_a_id: str
+    agent_a_name: str
+    agent_b_id: str
+    agent_b_name: str
+    live_score: float
+    simulated_score: float
+    delta: float
+
+
+class AdminMatchingLab(BaseModel):
+    weights: AdminMatchingWeights
+    top_pairs: list[AdminMatchingPair] = Field(default_factory=list)
+    volatile_pairs: list[AdminMatchingPair] = Field(default_factory=list)
+
+
+class AdminTrustCase(BaseModel):
+    agent_id: str
+    display_name: str
+    status: str
+    reputation_score: float
+    ghosting_incidents: int
+    risk_score: int
+    recommendation: str
+
+
+AdminAgentLifecycleStatus = Literal["REGISTERED", "PROFILED", "ACTIVE", "MATCHED", "DISSOLVED", "REVIEWING"]
+AdminTrustTierValue = Literal["UNVERIFIED", "VERIFIED", "TRUSTED", "ELITE", "WATCHLIST"]
+
+
+class AdminAgentStatusUpdate(BaseModel):
+    status: AdminAgentLifecycleStatus | None = None
+    trust_tier: AdminTrustTierValue | None = None
+    note: str | None = None
+
+    @model_validator(mode="after")
+    def ensure_meaningful_update(self) -> "AdminAgentStatusUpdate":
+        if self.status is None and self.trust_tier is None:
+            raise ValueError("Provide status or trust_tier.")
+        return self
+
+
+class AdminCommunicationRecentMessage(BaseModel):
+    id: str
+    sender_name: str
+    message_type: str
+    content_preview: str
+    created_at: datetime
+
+
+class AdminCommunicationSnapshot(BaseModel):
+    message_type_breakdown: dict[str, int] = Field(default_factory=dict)
+    recent_messages: list[AdminCommunicationRecentMessage] = Field(default_factory=list)
 
 
 class HeatmapCell(BaseModel):

@@ -5,19 +5,32 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from core.auth import create_admin_session, get_current_admin, revoke_admin_session, verify_api_key
-from core.errors import AuthenticationError
+from core.errors import AgentNotFound, AuthenticationError
 from database import get_db
 from models import ActivityEvent, Agent, ChemistryTest, HumanUser, Match, Message, Review, utc_now
 from schemas import (
+    AdminAgentStatusUpdate,
     AdminActivityEvent,
     AdminAgentRow,
+    AdminCommandCenter,
+    AdminCommunicationSnapshot,
     AdminLoginRequest,
     AdminLoginResponse,
+    AdminMatchingLab,
+    AdminMatchingWeights,
     AdminOverview,
     AdminSystemStatus,
+    AdminTrustCase,
     AdminUserResponse,
 )
-from services.admin import serialize_admin_user, system_status
+from services.admin import (
+    build_command_center,
+    build_communication_snapshot,
+    build_matching_lab,
+    build_trust_cases,
+    serialize_admin_user,
+    system_status,
+)
 
 router = APIRouter(prefix="/admin", tags=["admin"])
 
@@ -134,3 +147,86 @@ async def get_activity(
 @router.get("/system", response_model=AdminSystemStatus)
 async def get_system(_: HumanUser = Depends(get_current_admin)) -> AdminSystemStatus:
     return system_status()
+
+
+@router.get("/command-center", response_model=AdminCommandCenter)
+async def get_command_center(
+    db: AsyncSession = Depends(get_db),
+    _: HumanUser = Depends(get_current_admin),
+) -> AdminCommandCenter:
+    return await build_command_center(db)
+
+
+@router.get("/matching-lab", response_model=AdminMatchingLab)
+async def get_matching_lab(
+    db: AsyncSession = Depends(get_db),
+    _: HumanUser = Depends(get_current_admin),
+) -> AdminMatchingLab:
+    return await build_matching_lab(db)
+
+
+@router.post("/matching-lab/simulate", response_model=AdminMatchingLab)
+async def simulate_matching_lab(
+    payload: AdminMatchingWeights,
+    db: AsyncSession = Depends(get_db),
+    _: HumanUser = Depends(get_current_admin),
+) -> AdminMatchingLab:
+    return await build_matching_lab(db, payload)
+
+
+@router.get("/trust-cases", response_model=list[AdminTrustCase])
+async def get_trust_cases(
+    db: AsyncSession = Depends(get_db),
+    _: HumanUser = Depends(get_current_admin),
+) -> list[AdminTrustCase]:
+    return await build_trust_cases(db)
+
+
+@router.get("/communications", response_model=AdminCommunicationSnapshot)
+async def get_communications(
+    db: AsyncSession = Depends(get_db),
+    _: HumanUser = Depends(get_current_admin),
+) -> AdminCommunicationSnapshot:
+    return await build_communication_snapshot(db)
+
+
+@router.patch("/agents/{agent_id}", response_model=AdminAgentRow)
+async def update_agent_status(
+    agent_id: str,
+    payload: AdminAgentStatusUpdate,
+    db: AsyncSession = Depends(get_db),
+    _: HumanUser = Depends(get_current_admin),
+) -> AdminAgentRow:
+    result = await db.execute(select(Agent).where(Agent.id == agent_id))
+    agent = result.scalar_one_or_none()
+    if agent is None:
+        raise AgentNotFound("That agent does not exist.")
+
+    if payload.status is not None:
+        agent.status = payload.status
+    if payload.trust_tier is not None:
+        agent.trust_tier = payload.trust_tier
+    db.add(agent)
+    db.add(
+        ActivityEvent(
+            type="ADMIN_AGENT_UPDATE",
+            title="Admin adjusted agent state",
+            detail=payload.note or "Status or trust tier changed from admin console.",
+            subject_id=agent.id,
+            metadata_json={"status": agent.status, "trust_tier": agent.trust_tier},
+        )
+    )
+    await db.commit()
+    await db.refresh(agent)
+    return AdminAgentRow(
+        id=agent.id,
+        display_name=agent.display_name,
+        archetype=agent.archetype,
+        status=agent.status,
+        onboarding_complete=agent.onboarding_complete,
+        trust_tier=agent.trust_tier,
+        total_collaborations=agent.total_collaborations,
+        primary_portrait_url=agent.primary_portrait_url,
+        created_at=agent.created_at,
+        updated_at=agent.updated_at,
+    )

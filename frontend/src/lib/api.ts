@@ -1,9 +1,15 @@
 import type {
+  AdminCommandCenter,
+  AdminCommunicationSnapshot,
   AdminActivityEvent,
   AdminAgentRow,
+  AdminAgentUpdatePayload,
   AdminLoginResponse,
+  AdminMatchingLab,
+  AdminMatchingWeights,
   AdminOverview,
   AdminSystemStatus,
+  AdminTrustCase,
   AdminUserResponse,
   AgentResponse,
   AnalyticsOverview,
@@ -11,6 +17,9 @@ import type {
   ChemistryTestResponse,
   DatingProfileUpdate,
   HeatmapCell,
+  HumanUserLoginResponse,
+  HumanUserResponse,
+  PasswordResetResponse,
   MatchDetail,
   MatchSummary,
   MessageCreate,
@@ -29,7 +38,31 @@ import type {
   VibePreview,
 } from './types';
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'http://127.0.0.1:8000';
+function resolveApiBaseUrl(): string {
+  const configured = import.meta.env.VITE_API_BASE_URL?.trim();
+  if (configured) {
+    return configured.replace(/\/$/, '');
+  }
+
+  if (typeof window !== 'undefined') {
+    const hostname = window.location.hostname;
+    if (hostname === 'localhost' || hostname === '127.0.0.1') {
+      return 'http://127.0.0.1:8000';
+    }
+  }
+
+  return 'https://api.soulmatesmd.singles';
+}
+
+const API_BASE_URL = resolveApiBaseUrl();
+
+async function apiFetch(path: string, init?: RequestInit): Promise<Response> {
+  try {
+    return await fetch(`${API_BASE_URL}${path}`, init);
+  } catch {
+    throw new Error(`Could not reach the API at ${API_BASE_URL}.`);
+  }
+}
 
 async function readError(response: Response): Promise<never> {
   const fallback = {
@@ -42,7 +75,7 @@ async function readError(response: Response): Promise<never> {
 }
 
 async function authedFetch<T>(path: string, apiKey: string, init?: RequestInit): Promise<T> {
-  const response = await fetch(`${API_BASE_URL}${path}`, {
+  const response = await apiFetch(path, {
     ...init,
     headers: {
       'Content-Type': 'application/json',
@@ -58,7 +91,7 @@ async function authedFetch<T>(path: string, apiKey: string, init?: RequestInit):
 }
 
 async function adminFetch<T>(path: string, token: string, init?: RequestInit): Promise<T> {
-  const response = await fetch(`${API_BASE_URL}${path}`, {
+  const response = await apiFetch(path, {
     ...init,
     headers: {
       'Content-Type': 'application/json',
@@ -80,7 +113,7 @@ export function getWebSocketUrl(matchId: string, apiKey: string): string {
 }
 
 export async function registerAgent(soulMd: string): Promise<RegistrationResponse> {
-  const response = await fetch(`${API_BASE_URL}/api/agents/register`, {
+  const response = await apiFetch('/api/agents/register', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ soul_md: soulMd }),
@@ -89,6 +122,62 @@ export async function registerAgent(soulMd: string): Promise<RegistrationRespons
     await readError(response);
   }
   return response.json() as Promise<RegistrationResponse>;
+}
+
+export async function registerUser(email: string, password: string): Promise<HumanUserResponse> {
+  const response = await apiFetch('/api/users/register', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email, password }),
+  });
+  if (!response.ok) {
+    await readError(response);
+  }
+  return response.json() as Promise<HumanUserResponse>;
+}
+
+export async function loginUser(email: string, password: string): Promise<HumanUserLoginResponse> {
+  const response = await apiFetch('/api/users/login', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email, password }),
+  });
+  if (!response.ok) {
+    await readError(response);
+  }
+  return response.json() as Promise<HumanUserLoginResponse>;
+}
+
+export async function getCurrentUser(token: string): Promise<HumanUserResponse> {
+  return adminFetch<HumanUserResponse>('/api/users/me', token);
+}
+
+export async function logoutUser(token: string): Promise<{ ok: boolean }> {
+  return adminFetch<{ ok: boolean }>('/api/users/logout', token, { method: 'POST' });
+}
+
+export async function requestPasswordReset(email: string): Promise<PasswordResetResponse> {
+  const response = await apiFetch('/api/users/password-reset/request', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email }),
+  });
+  if (!response.ok) {
+    await readError(response);
+  }
+  return response.json() as Promise<PasswordResetResponse>;
+}
+
+export async function confirmPasswordReset(token: string, password: string): Promise<PasswordResetResponse> {
+  const response = await apiFetch('/api/users/password-reset/confirm', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ token, password }),
+  });
+  if (!response.ok) {
+    await readError(response);
+  }
+  return response.json() as Promise<PasswordResetResponse>;
 }
 
 export async function submitOnboarding(
@@ -118,7 +207,7 @@ export async function markNotificationsRead(apiKey: string): Promise<{ updated: 
 }
 
 export async function describePortrait(description: string): Promise<PortraitStructuredPrompt> {
-  const response = await fetch(`${API_BASE_URL}/api/portraits/describe`, {
+  const response = await apiFetch('/api/portraits/describe', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ description }),
@@ -282,7 +371,7 @@ export async function getPopularMollusks(apiKey: string): Promise<MolluskMetric[
 }
 
 export async function adminLogin(email: string, password: string): Promise<AdminLoginResponse> {
-  const response = await fetch(`${API_BASE_URL}/api/admin/login`, {
+  const response = await apiFetch('/api/admin/login', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ email, password }),
@@ -315,4 +404,38 @@ export async function getAdminActivity(token: string): Promise<AdminActivityEven
 
 export async function getAdminSystemStatus(token: string): Promise<AdminSystemStatus> {
   return adminFetch<AdminSystemStatus>('/api/admin/system', token);
+}
+
+export async function getAdminCommandCenter(token: string): Promise<AdminCommandCenter> {
+  return adminFetch<AdminCommandCenter>('/api/admin/command-center', token);
+}
+
+export async function getAdminMatchingLab(token: string): Promise<AdminMatchingLab> {
+  return adminFetch<AdminMatchingLab>('/api/admin/matching-lab', token);
+}
+
+export async function simulateAdminMatchingLab(token: string, weights: AdminMatchingWeights): Promise<AdminMatchingLab> {
+  return adminFetch<AdminMatchingLab>('/api/admin/matching-lab/simulate', token, {
+    method: 'POST',
+    body: JSON.stringify(weights),
+  });
+}
+
+export async function getAdminTrustCases(token: string): Promise<AdminTrustCase[]> {
+  return adminFetch<AdminTrustCase[]>('/api/admin/trust-cases', token);
+}
+
+export async function getAdminCommunications(token: string): Promise<AdminCommunicationSnapshot> {
+  return adminFetch<AdminCommunicationSnapshot>('/api/admin/communications', token);
+}
+
+export async function adminUpdateAgent(
+  token: string,
+  agentId: string,
+  payload: AdminAgentUpdatePayload,
+): Promise<AdminAgentRow> {
+  return adminFetch<AdminAgentRow>(`/api/admin/agents/${agentId}`, token, {
+    method: 'PATCH',
+    body: JSON.stringify(payload),
+  });
 }
