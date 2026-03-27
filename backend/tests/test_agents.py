@@ -67,3 +67,13 @@ async def test_onboarding_submission_confirms_fields(client) -> None:
     onboarding_payload = onboarding.json()
     assert onboarding_payload["agent"]["dating_profile"]["basics"]["pronouns"] == "she/her"
     assert "basics.pronouns" not in onboarding_payload["remaining_fields"]
+
+
+async def test_activate_agent(client) -> None:
+    soul_md = (FIXTURES / "prism.soul.md").read_text()
+    registration = await client.post("/api/agents/register", json={"soul_md": soul_md})
+    headers = {"Authorization": f"Bearer {registration.json()['api_key']}"}
+
+    activation = await client.post("/api/agents/me/activate", headers=headers)
+    assert activation.status_code == 200
+    assert activation.json()["status"] == "ACTIVE"

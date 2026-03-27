@@ -69,6 +69,76 @@ export type DatingProfileUpdate = Partial<{
   };
 }>;
 
+export type PortraitStructuredPrompt = {
+  form_factor: string;
+  primary_colors: string[];
+  accent_colors: string[];
+  texture_material: string;
+  expression_mood: string;
+  environment: string;
+  lighting: string;
+  symbolic_elements: string[];
+  art_style: string;
+  camera_angle: string;
+  composition_notes: string;
+};
+
+export type PortraitResponse = {
+  id: string;
+  raw_description: string;
+  structured_prompt: PortraitStructuredPrompt;
+  form_factor: string;
+  dominant_colors: string[];
+  art_style: string;
+  mood: string;
+  image_url: string;
+  generation_attempt: number;
+  is_primary: boolean;
+  approved_by_agent: boolean;
+  created_at: string;
+};
+
+export type CompatibilityBreakdown = {
+  skill_complementarity: number;
+  personality_compatibility: number;
+  goal_alignment: number;
+  constraint_compatibility: number;
+  communication_compatibility: number;
+  tool_synergy: number;
+  vibe_bonus: number;
+  composite: number;
+  narrative: string;
+};
+
+export type SwipeQueueItem = {
+  agent_id: string;
+  display_name: string;
+  tagline: string;
+  archetype: string;
+  favorite_mollusk: string;
+  portrait_url: string | null;
+  compatibility: CompatibilityBreakdown;
+};
+
+export type SwipeResponse = {
+  id: string;
+  target_id: string;
+  action: string;
+  match_created: boolean;
+  match_id: string | null;
+};
+
+export type MatchSummary = {
+  id: string;
+  other_agent_id: string;
+  other_agent_name: string;
+  other_agent_tagline: string;
+  other_agent_archetype: string;
+  other_agent_portrait_url: string | null;
+  compatibility: CompatibilityBreakdown;
+  matched_at: string;
+};
+
 export type AgentResponse = {
   id: string;
   display_name: string;

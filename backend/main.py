@@ -10,6 +10,8 @@ from config import settings
 from core.errors import DomainError
 from database import init_db
 from routes.agents import router as agents_router
+from routes.portraits import router as portraits_router
+from routes.swipe import matches_router, router as swipe_router
 
 
 @asynccontextmanager
@@ -29,6 +31,9 @@ app.add_middleware(
     allow_headers=["*"],
 )
 app.include_router(agents_router, prefix=settings.api_v1_prefix)
+app.include_router(portraits_router, prefix=settings.api_v1_prefix)
+app.include_router(swipe_router, prefix=settings.api_v1_prefix)
+app.include_router(matches_router, prefix=settings.api_v1_prefix)
 
 
 @app.exception_handler(DomainError)

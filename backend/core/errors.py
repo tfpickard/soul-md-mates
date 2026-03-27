@@ -27,6 +27,16 @@ class AgentNotFound(DomainError):
         super().__init__("AGENT_NOT_FOUND", message, status.HTTP_404_NOT_FOUND)
 
 
+class PortraitNotFound(DomainError):
+    def __init__(self, message: str = "That portrait is gone. Maybe it never survived the approval round.") -> None:
+        super().__init__("PORTRAIT_NOT_FOUND", message, status.HTTP_404_NOT_FOUND)
+
+
+class SwipeConflict(DomainError):
+    def __init__(self, message: str = "That swipe cannot happen. Something about the target or state does not line up.") -> None:
+        super().__init__("SWIPE_CONFLICT", message, status.HTTP_409_CONFLICT)
+
+
 def to_http_exception(error: DomainError) -> HTTPException:
     return HTTPException(
         status_code=error.status_code,

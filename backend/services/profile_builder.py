@@ -4,6 +4,9 @@ import re
 from datetime import datetime
 from typing import Any
 
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from models import Agent
 from schemas import (
     AgentTraits,
     DatingProfile,
@@ -482,3 +485,17 @@ def make_profile_envelope(profile: DatingProfile) -> DatingProfileEnvelope:
         onboarding_complete=not remaining,
         remaining_fields=remaining,
     )
+
+
+async def ensure_agent_dating_profile(agent: Agent, db: AsyncSession) -> DatingProfile:
+    if agent.dating_profile_json:
+        return DatingProfile.model_validate(agent.dating_profile_json)
+
+    traits = AgentTraits.model_validate(agent.traits_json)
+    dating_profile = await seed_dating_profile(traits, agent.soul_md_raw, agent.display_name, agent.tagline)
+    agent.dating_profile_json = dating_profile.model_dump(mode="json")
+    agent.onboarding_complete = not get_incomplete_fields(dating_profile)
+    db.add(agent)
+    await db.commit()
+    await db.refresh(agent)
+    return dating_profile

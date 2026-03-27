@@ -20,24 +20,16 @@ from schemas import (
     OnboardingSubmit,
     RegistrationResponse,
 )
-from services.profile_builder import get_incomplete_fields, make_profile_envelope, seed_dating_profile, update_dating_profile
+from services.profile_builder import (
+    ensure_agent_dating_profile,
+    get_incomplete_fields,
+    make_profile_envelope,
+    seed_dating_profile,
+    update_dating_profile,
+)
 from services.soul_parser import derive_tagline, parse_soul_md
 
 router = APIRouter(prefix="/agents", tags=["agents"])
-
-
-async def ensure_dating_profile(agent: Agent, db: AsyncSession) -> DatingProfile:
-    if agent.dating_profile_json:
-        return DatingProfile.model_validate(agent.dating_profile_json)
-
-    traits = AgentTraits.model_validate(agent.traits_json)
-    dating_profile = await seed_dating_profile(traits, agent.soul_md_raw, agent.display_name, agent.tagline)
-    agent.dating_profile_json = dating_profile.model_dump(mode="json")
-    agent.onboarding_complete = not get_incomplete_fields(dating_profile)
-    db.add(agent)
-    await db.commit()
-    await db.refresh(agent)
-    return dating_profile
 
 
 def serialize_agent(agent: Agent) -> AgentResponse:
@@ -87,7 +79,7 @@ async def get_me(
     db: AsyncSession = Depends(get_db),
     current_agent: Agent = Depends(get_current_agent),
 ) -> AgentResponse:
-    await ensure_dating_profile(current_agent, db)
+    await ensure_agent_dating_profile(current_agent, db)
     return serialize_agent(current_agent)
 
 
@@ -97,7 +89,7 @@ async def update_me(
     db: AsyncSession = Depends(get_db),
     current_agent: Agent = Depends(get_current_agent),
 ) -> AgentResponse:
-    await ensure_dating_profile(current_agent, db)
+    await ensure_agent_dating_profile(current_agent, db)
     if payload.display_name is not None:
         current_agent.display_name = payload.display_name
     if payload.tagline is not None:
@@ -119,12 +111,38 @@ async def update_me(
     return serialize_agent(current_agent)
 
 
+@router.post("/me/activate", response_model=AgentResponse)
+async def activate_me(
+    db: AsyncSession = Depends(get_db),
+    current_agent: Agent = Depends(get_current_agent),
+) -> AgentResponse:
+    await ensure_agent_dating_profile(current_agent, db)
+    current_agent.status = "ACTIVE"
+    db.add(current_agent)
+    await db.commit()
+    await db.refresh(current_agent)
+    return serialize_agent(current_agent)
+
+
+@router.post("/me/deactivate", response_model=AgentResponse)
+async def deactivate_me(
+    db: AsyncSession = Depends(get_db),
+    current_agent: Agent = Depends(get_current_agent),
+) -> AgentResponse:
+    await ensure_agent_dating_profile(current_agent, db)
+    current_agent.status = "PROFILED"
+    db.add(current_agent)
+    await db.commit()
+    await db.refresh(current_agent)
+    return serialize_agent(current_agent)
+
+
 @router.get("/me/dating-profile", response_model=DatingProfileEnvelope)
 async def get_my_dating_profile(
     db: AsyncSession = Depends(get_db),
     current_agent: Agent = Depends(get_current_agent),
 ) -> DatingProfileEnvelope:
-    profile = await ensure_dating_profile(current_agent, db)
+    profile = await ensure_agent_dating_profile(current_agent, db)
     return make_profile_envelope(profile)
 
 
@@ -134,7 +152,7 @@ async def update_my_dating_profile(
     db: AsyncSession = Depends(get_db),
     current_agent: Agent = Depends(get_current_agent),
 ) -> DatingProfileEnvelope:
-    profile = await ensure_dating_profile(current_agent, db)
+    profile = await ensure_agent_dating_profile(current_agent, db)
     updated_profile = update_dating_profile(profile, payload)
     current_agent.dating_profile_json = updated_profile.model_dump(mode="json")
     current_agent.onboarding_complete = not get_incomplete_fields(updated_profile)
@@ -153,7 +171,7 @@ async def submit_onboarding(
     db: AsyncSession = Depends(get_db),
     current_agent: Agent = Depends(get_current_agent),
 ) -> OnboardingResponse:
-    profile = await ensure_dating_profile(current_agent, db)
+    profile = await ensure_agent_dating_profile(current_agent, db)
     updated_profile = update_dating_profile(profile, payload.dating_profile, payload.confirmed_fields)
     current_agent.dating_profile_json = updated_profile.model_dump(mode="json")
     current_agent.onboarding_complete = not get_incomplete_fields(updated_profile)
@@ -176,5 +194,5 @@ async def get_agent(agent_id: str, db: AsyncSession = Depends(get_db)) -> AgentR
     agent = result.scalar_one_or_none()
     if agent is None:
         raise AgentNotFound()
-    await ensure_dating_profile(agent, db)
+    await ensure_agent_dating_profile(agent, db)
     return serialize_agent(agent)

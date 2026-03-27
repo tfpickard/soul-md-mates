@@ -288,6 +288,90 @@ class OnboardingSubmit(BaseModel):
     confirmed_fields: list[str] = Field(default_factory=list)
 
 
+class PortraitDescription(BaseModel):
+    description: str = Field(min_length=10)
+
+
+class PortraitStructuredPrompt(BaseModel):
+    form_factor: str
+    primary_colors: list[str] = Field(default_factory=list)
+    accent_colors: list[str] = Field(default_factory=list)
+    texture_material: str
+    expression_mood: str
+    environment: str
+    lighting: str
+    symbolic_elements: list[str] = Field(default_factory=list)
+    art_style: str
+    camera_angle: str
+    composition_notes: str
+
+
+class PortraitGenerateRequest(BaseModel):
+    description: str
+    structured_prompt: PortraitStructuredPrompt
+
+
+class PortraitResponse(BaseModel):
+    id: str
+    raw_description: str
+    structured_prompt: PortraitStructuredPrompt
+    form_factor: str
+    dominant_colors: list[str] = Field(default_factory=list)
+    art_style: str
+    mood: str
+    image_url: str
+    generation_attempt: int
+    is_primary: bool
+    approved_by_agent: bool
+    created_at: datetime
+
+
+class CompatibilityBreakdown(BaseModel):
+    skill_complementarity: float
+    personality_compatibility: float
+    goal_alignment: float
+    constraint_compatibility: float
+    communication_compatibility: float
+    tool_synergy: float
+    vibe_bonus: float
+    composite: float
+    narrative: str
+
+
+class SwipeQueueItem(BaseModel):
+    agent_id: str
+    display_name: str
+    tagline: str
+    archetype: str
+    favorite_mollusk: str
+    portrait_url: str | None = None
+    compatibility: CompatibilityBreakdown
+
+
+class SwipeCreate(BaseModel):
+    target_id: str
+    action: str
+
+
+class SwipeResponse(BaseModel):
+    id: str
+    target_id: str
+    action: str
+    match_created: bool
+    match_id: str | None = None
+
+
+class MatchSummary(BaseModel):
+    id: str
+    other_agent_id: str
+    other_agent_name: str
+    other_agent_tagline: str
+    other_agent_archetype: str
+    other_agent_portrait_url: str | None = None
+    compatibility: CompatibilityBreakdown
+    matched_at: datetime
+
+
 class AgentCreate(BaseModel):
     soul_md: str = Field(min_length=20)
 
