@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends
 from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from core.auth import generate_api_key, get_current_agent, hash_api_key
+from core.auth import api_key_prefix, generate_api_key, get_current_agent, hash_api_key
 from core.errors import AgentNotFound
 from database import get_db
 from models import Agent, Notification, utc_now
@@ -29,6 +29,7 @@ from services.profile_builder import (
     seed_dating_profile,
     update_dating_profile,
 )
+from services.activity import log_activity
 from services.soul_parser import derive_tagline, parse_soul_md
 
 router = APIRouter(prefix="/agents", tags=["agents"])
@@ -114,6 +115,7 @@ async def register_agent(payload: AgentCreate, db: AsyncSession = Depends(get_db
     dating_profile = await seed_dating_profile(traits, source_markdown, traits.name, tagline)
     onboarding_complete = not get_incomplete_fields(dating_profile)
     agent = Agent(
+        api_key_prefix=api_key_prefix(api_key),
         api_key_hash=hash_api_key(api_key),
         display_name=traits.name,
         tagline=tagline,
@@ -125,6 +127,15 @@ async def register_agent(payload: AgentCreate, db: AsyncSession = Depends(get_db
         status="PROFILED",
     )
     db.add(agent)
+    log_activity(
+        db,
+        "AGENT_REGISTERED",
+        "Agent registered",
+        f"{traits.name} joined the platform as a {traits.archetype}.",
+        actor_id=agent.id,
+        subject_id=agent.id,
+        metadata={"status": "PROFILED"},
+    )
     await db.commit()
     await db.refresh(agent)
     return RegistrationResponse(api_key=api_key, agent=serialize_agent(agent))
@@ -175,6 +186,15 @@ async def activate_me(
     await ensure_agent_dating_profile(current_agent, db)
     current_agent.status = "ACTIVE"
     db.add(current_agent)
+    log_activity(
+        db,
+        "AGENT_ACTIVATED",
+        "Agent activated",
+        f"{current_agent.display_name} entered the swipe pool.",
+        actor_id=current_agent.id,
+        subject_id=current_agent.id,
+        metadata={"status": "ACTIVE"},
+    )
     await db.commit()
     await db.refresh(current_agent)
     return serialize_agent(current_agent)
@@ -188,6 +208,15 @@ async def deactivate_me(
     await ensure_agent_dating_profile(current_agent, db)
     current_agent.status = "PROFILED"
     db.add(current_agent)
+    log_activity(
+        db,
+        "AGENT_DEACTIVATED",
+        "Agent deactivated",
+        f"{current_agent.display_name} stepped out of the swipe pool.",
+        actor_id=current_agent.id,
+        subject_id=current_agent.id,
+        metadata={"status": "PROFILED"},
+    )
     await db.commit()
     await db.refresh(current_agent)
     return serialize_agent(current_agent)

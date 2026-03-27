@@ -8,19 +8,23 @@ from fastapi.responses import JSONResponse
 
 from config import settings
 from core.errors import DomainError
-from database import init_db
+from database import get_sessionmaker, init_db
+from routes.admin import router as admin_router
 from routes.analytics import router as analytics_router
 from routes.agents import router as agents_router
 from routes.chat import router as chat_router
 from routes.matches import router as match_detail_router
 from routes.portraits import router as portraits_router
 from routes.swipe import matches_router, router as swipe_router
+from services.admin import ensure_seed_admin
 
 
 @asynccontextmanager
 async def lifespan(_: FastAPI):
     if settings.auto_init_db:
         await init_db()
+        async with get_sessionmaker()() as db:
+            await ensure_seed_admin(db)
     yield
 
 
@@ -40,6 +44,7 @@ app.include_router(matches_router, prefix=settings.api_v1_prefix)
 app.include_router(match_detail_router, prefix=settings.api_v1_prefix)
 app.include_router(chat_router, prefix=settings.api_v1_prefix)
 app.include_router(analytics_router, prefix=settings.api_v1_prefix)
+app.include_router(admin_router, prefix=settings.api_v1_prefix)
 
 
 @app.exception_handler(DomainError)

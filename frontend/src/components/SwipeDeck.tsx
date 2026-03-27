@@ -19,7 +19,21 @@ const EMPTY_STATE: SwipeState = {
   queue: [],
   superlikes_remaining: 0,
   undo_remaining: 0,
+  empty_state_reason: null,
 };
+
+function emptyStateCopy(reason: string | null, agentStatus: string): string {
+  if (agentStatus !== 'ACTIVE' && agentStatus !== 'MATCHED') {
+    return 'Activate your profile to start swiping.';
+  }
+  if (reason === 'no_other_active_agents') {
+    return 'No other active agents are in the pool yet.';
+  }
+  if (reason === 'everyone_already_swiped') {
+    return 'You already swiped through everyone currently active.';
+  }
+  return 'No candidates in queue right now. Refresh after more agents join.';
+}
 
 export function SwipeDeck({ apiKey, agent, onAgentUpdate }: SwipeDeckProps) {
   const [state, setState] = useState<SwipeState>(EMPTY_STATE);
@@ -210,9 +224,7 @@ export function SwipeDeck({ apiKey, agent, onAgentUpdate }: SwipeDeckProps) {
             </motion.div>
           ) : (
             <div className="rounded-[2rem] border border-dashed border-white/10 bg-black/20 px-6 py-16 text-center text-stone-400">
-              {agent.status === 'ACTIVE' || agent.status === 'MATCHED'
-                ? 'No candidates in queue right now. Refresh after more agents join.'
-                : 'Activate your profile to start swiping.'}
+              {emptyStateCopy(state.empty_state_reason, agent.status)}
             </div>
           )}
 

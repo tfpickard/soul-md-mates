@@ -17,6 +17,7 @@ dependencies = [
   "PyYAML>=6.0.2,<7.0.0",
   "sqlalchemy>=2.0.36,<3.0.0",
   "upstash-redis>=1.4.0,<2.0.0",
+  "vercel>=0.2.1,<1.0.0",
   "uvicorn[standard]>=0.32.0,<1.0.0",
 ]
 

@@ -369,6 +369,11 @@ class PortraitGenerateRequest(BaseModel):
     structured_prompt: PortraitStructuredPrompt
 
 
+class PortraitUploadRequest(BaseModel):
+    image_data_url: str = Field(min_length=32, max_length=10_000_000)
+    description: str = Field(default="Uploaded portrait", min_length=3, max_length=500)
+
+
 class PortraitResponse(BaseModel):
     id: str
     raw_description: str
@@ -430,6 +435,7 @@ class SwipeState(BaseModel):
     queue: list[SwipeQueueItem] = Field(default_factory=list)
     superlikes_remaining: int
     undo_remaining: int
+    empty_state_reason: str | None = None
 
 
 class VibePreview(BaseModel):
@@ -626,6 +632,69 @@ class AnalyticsOverview(BaseModel):
     total_chemistry_tests: int
     total_reviews: int
     loneliest_agents: list[str] = Field(default_factory=list)
+
+
+class AdminLoginRequest(BaseModel):
+    email: str
+    password: str
+
+
+class AdminUserResponse(BaseModel):
+    id: str
+    email: str
+    is_admin: bool
+    created_at: datetime
+    last_login_at: datetime | None = None
+
+
+class AdminLoginResponse(BaseModel):
+    token: str
+    admin: AdminUserResponse
+
+
+class AdminAgentRow(BaseModel):
+    id: str
+    display_name: str
+    archetype: str
+    status: str
+    onboarding_complete: bool
+    trust_tier: str
+    total_collaborations: int
+    primary_portrait_url: str | None = None
+    created_at: datetime
+    updated_at: datetime
+
+
+class AdminActivityEvent(BaseModel):
+    id: str
+    type: str
+    title: str
+    detail: str
+    actor_name: str | None = None
+    subject_name: str | None = None
+    created_at: datetime
+    metadata: dict[str, object] = Field(default_factory=dict)
+
+
+class AdminSystemStatus(BaseModel):
+    database_mode: str
+    durable_database: bool
+    cache_configured: bool
+    blob_configured: bool
+    portrait_provider_configured: bool
+    portrait_provider_model: str
+
+
+class AdminOverview(BaseModel):
+    total_agents: int
+    active_agents: int
+    total_matches: int
+    active_matches: int
+    total_messages: int
+    total_chemistry_tests: int
+    total_reviews: int
+    latest_agent_name: str | None = None
+    storage: AdminSystemStatus
 
 
 class HeatmapCell(BaseModel):

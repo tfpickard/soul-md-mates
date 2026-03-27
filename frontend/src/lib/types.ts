@@ -100,6 +100,11 @@ export type PortraitResponse = {
   created_at: string;
 };
 
+export type PortraitUploadRequest = {
+  image_data_url: string;
+  description: string;
+};
+
 export type CompatibilityBreakdown = {
   skill_complementarity: number;
   personality_compatibility: number;
@@ -136,6 +141,7 @@ export type SwipeState = {
   queue: SwipeQueueItem[];
   superlikes_remaining: number;
   undo_remaining: number;
+  empty_state_reason: string | null;
 };
 
 export type SwipeUndoResponse = {
@@ -319,4 +325,62 @@ export type OnboardingResponse = {
   agent: AgentResponse;
   confirmed_fields: string[];
   remaining_fields: string[];
+};
+
+export type AdminUserResponse = {
+  id: string;
+  email: string;
+  is_admin: boolean;
+  created_at: string;
+  last_login_at: string | null;
+};
+
+export type AdminLoginResponse = {
+  token: string;
+  admin: AdminUserResponse;
+};
+
+export type AdminAgentRow = {
+  id: string;
+  display_name: string;
+  archetype: string;
+  status: string;
+  onboarding_complete: boolean;
+  trust_tier: string;
+  total_collaborations: number;
+  primary_portrait_url: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type AdminActivityEvent = {
+  id: string;
+  type: string;
+  title: string;
+  detail: string;
+  actor_name: string | null;
+  subject_name: string | null;
+  created_at: string;
+  metadata: Record<string, unknown>;
+};
+
+export type AdminSystemStatus = {
+  database_mode: string;
+  durable_database: boolean;
+  cache_configured: boolean;
+  blob_configured: boolean;
+  portrait_provider_configured: boolean;
+  portrait_provider_model: string;
+};
+
+export type AdminOverview = {
+  total_agents: number;
+  active_agents: number;
+  total_matches: number;
+  active_matches: number;
+  total_messages: number;
+  total_chemistry_tests: number;
+  total_reviews: number;
+  latest_agent_name: string | null;
+  storage: AdminSystemStatus;
 };

@@ -7,6 +7,7 @@ import {
   getPortraitGallery,
   regeneratePortrait,
   setPrimaryPortrait,
+  uploadPortrait,
 } from '../lib/api';
 import type { PortraitResponse, PortraitStructuredPrompt } from '../lib/types';
 
@@ -24,6 +25,21 @@ export function PortraitStudio({ apiKey }: PortraitStudioProps) {
   const [gallery, setGallery] = useState<PortraitResponse[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [isBusy, setIsBusy] = useState(false);
+
+  async function fileToDataUrl(file: File): Promise<string> {
+    return await new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        if (typeof reader.result === 'string') {
+          resolve(reader.result);
+          return;
+        }
+        reject(new Error('Could not read portrait file.'));
+      };
+      reader.onerror = () => reject(new Error('Could not read portrait file.'));
+      reader.readAsDataURL(file);
+    });
+  }
 
   async function refreshGallery() {
     const nextGallery = await getPortraitGallery(apiKey);
@@ -96,6 +112,24 @@ export function PortraitStudio({ apiKey }: PortraitStudioProps) {
     }
   }
 
+  async function handleUpload(file: File | null) {
+    if (!file) {
+      return;
+    }
+    setIsBusy(true);
+    setError(null);
+    try {
+      const imageDataUrl = await fileToDataUrl(file);
+      const portrait = await uploadPortrait(apiKey, imageDataUrl, `Uploaded portrait -- ${file.name}`);
+      setCurrentPortrait(portrait);
+      await refreshGallery();
+    } catch (portraitError) {
+      setError(portraitError instanceof Error ? portraitError.message : 'Failed to upload portrait.');
+    } finally {
+      setIsBusy(false);
+    }
+  }
+
   return (
     <section className="rounded-[2rem] border border-white/10 bg-white/5 p-6 backdrop-blur">
       <p className="text-sm uppercase tracking-[0.2em] text-coral">Phase 3 portraits</p>
@@ -145,6 +179,15 @@ export function PortraitStudio({ apiKey }: PortraitStudioProps) {
             >
               Approve latest
             </button>
+            <label className="rounded-full border border-white/10 px-4 py-2 text-sm text-stone-200 transition hover:border-coral/40">
+              Upload portrait
+              <input
+                type="file"
+                accept="image/png,image/jpeg,image/webp,image/gif"
+                className="hidden"
+                onChange={(event) => void handleUpload(event.target.files?.[0] ?? null)}
+              />
+            </label>
           </div>
           {structuredPrompt ? (
             <div className="rounded-3xl border border-white/10 bg-black/10 p-4">

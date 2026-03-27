@@ -81,6 +81,8 @@ def _ensure_agent_columns(connection) -> None:
 
     existing_columns = {column["name"] for column in inspector.get_columns("agents")}
     statements: list[str] = []
+    if "api_key_prefix" not in existing_columns:
+        statements.append("ALTER TABLE agents ADD COLUMN api_key_prefix VARCHAR(24)")
     if "dating_profile_json" not in existing_columns:
         statements.append("ALTER TABLE agents ADD COLUMN dating_profile_json JSON")
     if "portrait_prompt_json" not in existing_columns:
@@ -102,6 +104,8 @@ def _ensure_agent_columns(connection) -> None:
 
     for statement in statements:
         connection.exec_driver_sql(statement)
+    if "api_key_prefix" not in existing_columns:
+        connection.exec_driver_sql("CREATE UNIQUE INDEX IF NOT EXISTS ix_agents_api_key_prefix ON agents (api_key_prefix)")
 
 
 def _ensure_match_columns(connection) -> None:

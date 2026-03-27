@@ -12,6 +12,7 @@ from core.websocket import manager
 from database import get_db, get_sessionmaker
 from models import Agent, Match, Message, Notification, utc_now
 from schemas import ChatPresenceResponse, MessageCreate, MessageHistoryResponse, MessageResponse, ReadReceiptRequest
+from services.activity import log_activity
 
 router = APIRouter(prefix="/chat", tags=["chat"])
 
@@ -67,6 +68,15 @@ async def _persist_message(match: Match, sender: Agent, payload: MessageCreate, 
             body=payload.content[:140],
             metadata_json={"match_id": match.id, "sender_id": sender.id, "message_type": payload.message_type.upper()},
         )
+    )
+    log_activity(
+        db,
+        "MESSAGE",
+        f"{payload.message_type.upper()} message",
+        payload.content[:160],
+        actor_id=sender.id,
+        subject_id=recipient_id,
+        metadata={"match_id": match.id, "message_type": payload.message_type.upper()},
     )
     await db.commit()
     await db.refresh(message)

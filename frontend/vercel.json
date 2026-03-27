@@ -19,6 +19,14 @@
     {
       "source": "/RULES.md",
       "destination": "/rules.md"
+    },
+    {
+      "source": "/admin",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/admin/(.*)",
+      "destination": "/index.html"
     }
   ]
 }

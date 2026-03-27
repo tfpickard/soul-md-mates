@@ -1,19 +1,37 @@
 from __future__ import annotations
 
-from abc import ABC, abstractmethod
+import base64
+from dataclasses import dataclass
 from urllib.parse import quote
+from uuid import uuid4
+
+import httpx
+from vercel.blob import AsyncBlobClient
+
+from config import settings
+from abc import ABC, abstractmethod
 
 from schemas import PortraitStructuredPrompt
 
 
+@dataclass
+class GeneratedImage:
+    url: str
+    source: str
+
+
 class ImageGenerator(ABC):
     @abstractmethod
-    async def generate(self, prompt: PortraitStructuredPrompt) -> str:
+    async def generate(self, prompt: PortraitStructuredPrompt) -> GeneratedImage:
+        raise NotImplementedError
+
+    @abstractmethod
+    async def upload(self, payload: bytes, content_type: str, filename_hint: str) -> GeneratedImage:
         raise NotImplementedError
 
 
 class PlaceholderImageGenerator(ImageGenerator):
-    async def generate(self, prompt: PortraitStructuredPrompt) -> str:
+    async def generate(self, prompt: PortraitStructuredPrompt) -> GeneratedImage:
         primary = prompt.primary_colors[0] if prompt.primary_colors else "#1f2937"
         secondary = prompt.accent_colors[0] if prompt.accent_colors else "#ff7c64"
         tertiary = prompt.primary_colors[1] if len(prompt.primary_colors) > 1 else "#f4efe8"
@@ -36,5 +54,80 @@ class PlaceholderImageGenerator(ImageGenerator):
           <text x='384' y='728' text-anchor='middle' font-family='system-ui, sans-serif' font-size='20' fill='#f8f2eb'>{symbols}</text>
         </svg>
         """.strip()
-        return f"data:image/svg+xml;charset=utf-8,{quote(svg)}"
+        return GeneratedImage(url=f"data:image/svg+xml;charset=utf-8,{quote(svg)}", source="placeholder")
 
+    async def upload(self, payload: bytes, content_type: str, filename_hint: str) -> GeneratedImage:
+        encoded = base64.b64encode(payload).decode("ascii")
+        return GeneratedImage(url=f"data:{content_type};base64,{encoded}", source="inline-upload")
+
+
+class VercelBlobStore:
+    async def put(self, payload: bytes, content_type: str, filename_hint: str) -> str:
+        client = AsyncBlobClient()
+        pathname = f"portraits/{uuid4().hex}-{filename_hint}"
+        blob = await client.put(
+            pathname,
+            payload,
+            access="public",
+            add_random_suffix=False,
+            content_type=content_type,
+        )
+        return blob.url
+
+
+class PortraitImageService(ImageGenerator):
+    def __init__(self) -> None:
+        self.placeholder = PlaceholderImageGenerator()
+        self.blob = VercelBlobStore()
+
+    async def upload(self, payload: bytes, content_type: str, filename_hint: str) -> GeneratedImage:
+        if settings.has_blob_storage:
+            try:
+                url = await self.blob.put(payload, content_type, filename_hint)
+                return GeneratedImage(url=url, source="blob-upload")
+            except Exception:
+                pass
+        return await self.placeholder.upload(payload, content_type, filename_hint)
+
+    async def _generate_with_hugging_face(self, prompt: PortraitStructuredPrompt) -> GeneratedImage:
+        if not settings.hf_token:
+            raise RuntimeError("HF_TOKEN is not configured.")
+
+        prompt_text = " | ".join(
+            [
+                prompt.form_factor,
+                f"mood: {prompt.expression_mood}",
+                f"materials: {prompt.texture_material}",
+                f"environment: {prompt.environment}",
+                f"lighting: {prompt.lighting}",
+                f"style: {prompt.art_style}",
+                f"camera: {prompt.camera_angle}",
+                f"composition: {prompt.composition_notes}",
+                f"colors: {', '.join(prompt.primary_colors + prompt.accent_colors)}",
+                f"symbols: {', '.join(prompt.symbolic_elements)}",
+            ]
+        )
+        async with httpx.AsyncClient(timeout=120.0) as client:
+            response = await client.post(
+                f"https://api-inference.huggingface.co/models/{settings.hf_image_model}",
+                headers={"Authorization": f"Bearer {settings.hf_token}"},
+                json={
+                    "inputs": prompt_text,
+                    "parameters": {
+                        "width": 768,
+                        "height": 1024,
+                        "num_inference_steps": 8,
+                        "guidance_scale": 3.5,
+                    },
+                },
+            )
+        response.raise_for_status()
+        return await self.upload(response.content, response.headers.get("content-type", "image/png"), "generated.png")
+
+    async def generate(self, prompt: PortraitStructuredPrompt) -> GeneratedImage:
+        if settings.hf_token:
+            try:
+                return await self._generate_with_hugging_face(prompt)
+            except Exception:
+                pass
+        return await self.placeholder.generate(prompt)

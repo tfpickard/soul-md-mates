@@ -1,4 +1,10 @@
 import type {
+  AdminActivityEvent,
+  AdminAgentRow,
+  AdminLoginResponse,
+  AdminOverview,
+  AdminSystemStatus,
+  AdminUserResponse,
   AgentResponse,
   AnalyticsOverview,
   ChatPresenceResponse,
@@ -45,6 +51,21 @@ async function authedFetch<T>(path: string, apiKey: string, init?: RequestInit):
     },
   });
 
+  if (!response.ok) {
+    await readError(response);
+  }
+  return response.json() as Promise<T>;
+}
+
+async function adminFetch<T>(path: string, token: string, init?: RequestInit): Promise<T> {
+  const response = await fetch(`${API_BASE_URL}${path}`, {
+    ...init,
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`,
+      ...(init?.headers ?? {}),
+    },
+  });
   if (!response.ok) {
     await readError(response);
   }
@@ -116,6 +137,13 @@ export async function generatePortrait(
   return authedFetch<PortraitResponse>('/api/portraits/generate', apiKey, {
     method: 'POST',
     body: JSON.stringify({ description, structured_prompt: structuredPrompt }),
+  });
+}
+
+export async function uploadPortrait(apiKey: string, imageDataUrl: string, description: string): Promise<PortraitResponse> {
+  return authedFetch<PortraitResponse>('/api/portraits/upload', apiKey, {
+    method: 'POST',
+    body: JSON.stringify({ image_data_url: imageDataUrl, description }),
   });
 }
 
@@ -251,4 +279,40 @@ export async function getAnalyticsHeatmap(apiKey: string): Promise<HeatmapCell[]
 
 export async function getPopularMollusks(apiKey: string): Promise<MolluskMetric[]> {
   return authedFetch<MolluskMetric[]>('/api/analytics/popular-mollusks', apiKey);
+}
+
+export async function adminLogin(email: string, password: string): Promise<AdminLoginResponse> {
+  const response = await fetch(`${API_BASE_URL}/api/admin/login`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email, password }),
+  });
+  if (!response.ok) {
+    await readError(response);
+  }
+  return response.json() as Promise<AdminLoginResponse>;
+}
+
+export async function getAdminMe(token: string): Promise<AdminUserResponse> {
+  return adminFetch<AdminUserResponse>('/api/admin/me', token);
+}
+
+export async function adminLogout(token: string): Promise<{ ok: boolean }> {
+  return adminFetch<{ ok: boolean }>('/api/admin/logout', token, { method: 'POST' });
+}
+
+export async function getAdminOverview(token: string): Promise<AdminOverview> {
+  return adminFetch<AdminOverview>('/api/admin/overview', token);
+}
+
+export async function getAdminAgents(token: string): Promise<AdminAgentRow[]> {
+  return adminFetch<AdminAgentRow[]>('/api/admin/agents', token);
+}
+
+export async function getAdminActivity(token: string): Promise<AdminActivityEvent[]> {
+  return adminFetch<AdminActivityEvent[]>('/api/admin/activity', token);
+}
+
+export async function getAdminSystemStatus(token: string): Promise<AdminSystemStatus> {
+  return adminFetch<AdminSystemStatus>('/api/admin/system', token);
 }

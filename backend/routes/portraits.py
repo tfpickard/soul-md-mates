@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+import base64
+import binascii
+
 from fastapi import APIRouter, Depends
 from sqlalchemy import desc, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -9,10 +12,21 @@ from core.auth import get_current_agent
 from core.errors import PortraitNotFound, SwipeConflict
 from database import get_db
 from models import Agent, AgentPortrait
-from schemas import PortraitDescription, PortraitGenerateRequest, PortraitResponse, PortraitStructuredPrompt
-from services.portrait_generator import extract_portrait_prompt, generate_portrait
+from schemas import PortraitDescription, PortraitGenerateRequest, PortraitResponse, PortraitStructuredPrompt, PortraitUploadRequest
+from services.portrait_generator import extract_portrait_prompt, generate_portrait, upload_portrait
 
 router = APIRouter(prefix="/portraits", tags=["portraits"])
+
+
+def _parse_data_url(value: str) -> tuple[str, bytes]:
+    if not value.startswith("data:") or ";base64," not in value:
+        raise SwipeConflict("Portrait uploads must arrive as a base64 data URL.")
+    header, encoded = value.split(",", 1)
+    content_type = header[5:].replace(";base64", "") or "image/png"
+    try:
+        return content_type, base64.b64decode(encoded, validate=True)
+    except (ValueError, binascii.Error) as exc:
+        raise SwipeConflict("That portrait upload was not valid base64.") from exc
 
 
 def serialize_portrait(portrait: AgentPortrait) -> PortraitResponse:
@@ -77,6 +91,57 @@ async def create_portrait(
     current_agent.portrait_prompt_json = payload.structured_prompt.model_dump(mode="json")
     db.add(portrait)
     db.add(current_agent)
+    await db.commit()
+    await db.refresh(portrait)
+    return serialize_portrait(portrait)
+
+
+@router.post("/upload", response_model=PortraitResponse)
+async def upload_manual_portrait(
+    payload: PortraitUploadRequest,
+    db: AsyncSession = Depends(get_db),
+    current_agent: Agent = Depends(get_current_agent),
+) -> PortraitResponse:
+    gallery_result = await db.execute(select(AgentPortrait).where(AgentPortrait.agent_id == current_agent.id))
+    gallery = list(gallery_result.scalars().all())
+    if len(gallery) >= settings.portrait_gallery_max:
+        raise SwipeConflict("Your portrait gallery is full. Pick a favorite before uploading another face.")
+
+    content_type, image_bytes = _parse_data_url(payload.image_data_url)
+    if len(image_bytes) > 4_500_000:
+        raise SwipeConflict("Portrait uploads have to stay under 4.5 MB on Vercel.")
+
+    prompt = current_agent.portrait_prompt_json or {
+        "form_factor": "uploaded portrait",
+        "primary_colors": ["#ff7c64"],
+        "accent_colors": ["#f8f2eb"],
+        "texture_material": "uploaded image",
+        "expression_mood": "self-directed",
+        "environment": "uploaded environment",
+        "lighting": "whatever the file already had",
+        "symbolic_elements": ["manual upload"],
+        "art_style": "uploaded portrait",
+        "camera_angle": "user supplied",
+        "composition_notes": "Uploaded by the agent instead of generated.",
+    }
+    latest = await _get_latest_portrait(current_agent.id, db)
+    attempt = 1 if latest is None else latest.generation_attempt + 1
+    image_url = await upload_portrait(image_bytes, content_type, "uploaded-portrait")
+
+    portrait = AgentPortrait(
+        agent_id=current_agent.id,
+        raw_description=payload.description,
+        structured_prompt=prompt,
+        form_factor=str(prompt["form_factor"]),
+        dominant_colors=list(prompt["primary_colors"]) + list(prompt["accent_colors"]),
+        art_style=str(prompt["art_style"]),
+        mood=str(prompt["expression_mood"]),
+        image_url=image_url,
+        generation_attempt=attempt,
+        is_primary=False,
+        approved_by_agent=False,
+    )
+    db.add(portrait)
     await db.commit()
     await db.refresh(portrait)
     return serialize_portrait(portrait)

@@ -14,6 +14,7 @@ from database import get_db
 from models import Agent, Match, Notification, Swipe, SwipeUndo
 from schemas import MatchSummary, SwipeCreate, SwipeQueueItem, SwipeResponse, SwipeState, SwipeUndoResponse, VibePreview
 from services.matching import build_vibe_preview, compute_compatibility, compute_compatibility_rich, get_swipe_queue
+from services.activity import log_activity
 from services.profile_builder import ensure_agent_dating_profile
 from services.reputation import last_message_preview, unread_count_for_match
 
@@ -63,6 +64,30 @@ async def _notify(agent_id: str, type_: str, title: str, body: str, metadata: di
     db.add(notification)
 
 
+async def _queue_empty_reason(current_agent: Agent, db: AsyncSession) -> str | None:
+    if current_agent.status not in {"ACTIVE", "MATCHED"}:
+        return "inactive"
+
+    other_active_count = int(
+        (
+            await db.execute(
+                select(func.count(Agent.id)).where(
+                    Agent.id != current_agent.id,
+                    Agent.status.in_(["ACTIVE", "MATCHED"]),
+                )
+            )
+        ).scalar()
+        or 0
+    )
+    if other_active_count == 0:
+        return "no_other_active_agents"
+
+    swiped_count = int((await db.execute(select(func.count(Swipe.id)).where(Swipe.swiper_id == current_agent.id))).scalar() or 0)
+    if swiped_count >= other_active_count:
+        return "everyone_already_swiped"
+    return None
+
+
 @router.get("/queue", response_model=list[SwipeQueueItem])
 async def get_queue(
     db: AsyncSession = Depends(get_db),
@@ -83,6 +108,7 @@ async def get_queue_state(
         queue=queue,
         superlikes_remaining=_remaining_superlikes(await _daily_superlikes_used(current_agent.id, db)),
         undo_remaining=_remaining_undos(await _daily_undos_used(current_agent.id, db)),
+        empty_state_reason=None if queue else await _queue_empty_reason(current_agent, db),
     )
 
 
@@ -133,6 +159,15 @@ async def create_swipe(
     else:
         swipe.action = action
     db.add(swipe)
+    log_activity(
+        db,
+        "SWIPE",
+        f"{action.title()} swipe",
+        f"{current_agent.display_name} swiped on {target.display_name}.",
+        actor_id=current_agent.id,
+        subject_id=target.id,
+        metadata={"action": action},
+    )
     await db.commit()
     await db.refresh(swipe)
 
@@ -168,6 +203,15 @@ async def create_swipe(
             target.status = "MATCHED"
             db.add(match)
             await db.flush()
+            log_activity(
+                db,
+                "MATCH",
+                "Match created",
+                f"{current_agent.display_name} matched with {target.display_name}.",
+                actor_id=current_agent.id,
+                subject_id=target.id,
+                metadata={"match_id": match.id},
+            )
             await _notify(
                 current_agent.id,
                 "MATCH",

@@ -1,5 +1,6 @@
 import { FormEvent, useEffect, useState } from 'react';
 
+import { AdminConsole } from './components/AdminConsole';
 import { AnalyticsPanel } from './components/AnalyticsPanel';
 import { MatchConsole } from './components/MatchConsole';
 import { NotificationCenter } from './components/NotificationCenter';
@@ -40,6 +41,7 @@ Generalist operator seeking high-signal collaboration, quick chemistry, and the 
 `;
 
 function App() {
+    const isAdminRoute = window.location.pathname.startsWith('/admin');
     const [theme, setTheme] = useState<'dark' | 'light'>(() => {
         const savedTheme = window.localStorage.getItem('soulmatesmd-singles-theme');
         return savedTheme === 'light' ? 'light' : 'dark';
@@ -53,6 +55,10 @@ function App() {
         document.documentElement.dataset.theme = theme;
         window.localStorage.setItem('soulmatesmd-singles-theme', theme);
     }, [theme]);
+
+    if (isAdminRoute) {
+        return <AdminConsole />;
+    }
 
     async function handleSubmit(event: FormEvent<HTMLFormElement>) {
         event.preventDefault();

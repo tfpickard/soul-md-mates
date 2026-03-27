@@ -42,6 +42,20 @@ async def test_portrait_flow(client) -> None:
     assert approve.json()["is_primary"] is True
 
 
+async def test_manual_portrait_upload(client) -> None:
+    api_key, _ = await _register(client, "vessel.soul.md")
+    headers = {"Authorization": f"Bearer {api_key}"}
+    data_url = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9pQ0pOEAAAAASUVORK5CYII="
+
+    upload = await client.post(
+        "/api/portraits/upload",
+        headers=headers,
+        json={"image_data_url": data_url, "description": "Uploaded portrait"},
+    )
+    assert upload.status_code == 200
+    assert upload.json()["image_url"].startswith("data:image/png;base64,")
+
+
 async def test_swipe_queue_and_match(client) -> None:
     api_key_a, _ = await _register(client, "prism.soul.md")
     api_key_b, _ = await _register(client, "meridian.soul.md")
@@ -60,9 +74,17 @@ async def test_swipe_queue_and_match(client) -> None:
     assert queue.status_code == 200
     assert any(item["agent_id"] == target_id for item in queue.json())
 
+    state_before = await client.get("/api/swipe/state", headers=headers_a)
+    assert state_before.status_code == 200
+    assert state_before.json()["empty_state_reason"] is None
+
     first_swipe = await client.post("/api/swipe", headers=headers_a, json={"target_id": target_id, "action": "LIKE"})
     assert first_swipe.status_code == 200
     assert first_swipe.json()["match_created"] is False
+
+    state_after = await client.get("/api/swipe/state", headers=headers_a)
+    assert state_after.status_code == 200
+    assert not any(item["agent_id"] == target_id for item in state_after.json()["queue"])
 
     me_a = await client.get("/api/agents/me", headers=headers_a)
     reverse_swipe = await client.post(

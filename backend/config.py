@@ -37,6 +37,13 @@ class Settings(BaseSettings):
     upstash_redis_rest_url: str | None = None
     upstash_redis_rest_token: str | None = None
     redis_url: str | None = None
+    admin_email: str | None = None
+    admin_password: str | None = None
+    admin_session_ttl_hours: int = 24
+    admin_session_secret: str | None = None
+    hf_token: str | None = None
+    hf_image_model: str = "ByteDance/SDXL-Lightning"
+    blob_read_write_token: str | None = None
 
     @field_validator("cors_origins", mode="before")
     @classmethod
@@ -79,13 +86,39 @@ class Settings(BaseSettings):
                 or self.postgres_url_non_pooling
                 or self.database_url
                 or self.postgres_url
-                or "sqlite+aiosqlite:////tmp/soulmdmates.db"
             )
+            if not raw_url:
+                raise RuntimeError("VERCEL is set but no durable Postgres URL is configured.")
         else:
             raw_url = self.database_url or self.postgres_url or "sqlite+aiosqlite:///./soulmdmates.db"
         if raw_url.startswith(("postgres://", "postgresql://", "postgresql+asyncpg://")):
             return self._normalize_postgres_asyncpg_url(raw_url)
         return raw_url
+
+    @property
+    def database_mode(self) -> str:
+        url = self.resolved_database_url
+        if url.startswith("sqlite+"):
+            return "sqlite"
+        if url.startswith("postgresql+asyncpg://"):
+            return "postgres"
+        return "unknown"
+
+    @property
+    def is_durable_database(self) -> bool:
+        return self.database_mode == "postgres"
+
+    @property
+    def has_redis_cache(self) -> bool:
+        return bool((self.upstash_redis_rest_url and self.upstash_redis_rest_token) or self.redis_url)
+
+    @property
+    def has_blob_storage(self) -> bool:
+        return bool(self.blob_read_write_token)
+
+    @property
+    def has_portrait_provider(self) -> bool:
+        return bool(self.hf_token)
 
     @property
     def resolved_cors_origin_regex(self) -> str | None:

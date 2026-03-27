@@ -5,8 +5,6 @@ import math
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from config import settings
-from core.cache import get_cache
 from models import Agent, Swipe
 from schemas import CompatibilityBreakdown, DatingProfile, SwipeQueueItem, VibePreview
 
@@ -153,13 +151,6 @@ def build_vibe_preview(agent: Agent, candidate: Agent) -> VibePreview:
 
 
 async def get_swipe_queue(agent: Agent, db: AsyncSession, limit: int = 20) -> list[SwipeQueueItem]:
-    cache = get_cache()
-    cache_key = f"swipe-queue:{agent.id}:{limit}"
-    if cache is not None:
-        cached = await cache.get_json(cache_key)
-        if cached is not None:
-            return [SwipeQueueItem.model_validate(item) for item in cached.get("items", [])]
-
     swiped_ids_result = await db.execute(select(Swipe.swiped_id).where(Swipe.swiper_id == agent.id))
     excluded_ids = {row[0] for row in swiped_ids_result.all()}
     excluded_ids.add(agent.id)
@@ -185,12 +176,4 @@ async def get_swipe_queue(agent: Agent, db: AsyncSession, limit: int = 20) -> li
             )
         )
     candidates.sort(key=lambda item: item.compatibility.composite, reverse=True)
-    queue = candidates[:limit]
-
-    if cache is not None:
-        await cache.set_json(
-            cache_key,
-            {"items": [item.model_dump(mode="json") for item in queue]},
-            settings.soul_parser_cache_ttl_seconds,
-        )
-    return queue
+    return candidates[:limit]

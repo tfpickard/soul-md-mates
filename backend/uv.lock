@@ -456,6 +456,7 @@ dependencies = [
     { name = "sqlalchemy" },
     { name = "upstash-redis" },
     { name = "uvicorn", extra = ["standard"] },
+    { name = "vercel" },
 ]
 
 [package.optional-dependencies]
@@ -481,6 +482,7 @@ requires-dist = [
     { name = "sqlalchemy", specifier = ">=2.0.36,<3.0.0" },
     { name = "upstash-redis", specifier = ">=1.4.0,<2.0.0" },
     { name = "uvicorn", extras = ["standard"], specifier = ">=0.32.0,<1.0.0" },
+    { name = "vercel", specifier = ">=0.2.1,<1.0.0" },
 ]
 provides-extras = ["dev"]
 
@@ -586,6 +588,22 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/5f/6f/e62b4dfc7ad6518e7eff2516f680d02a0f6eb62c0c212e152ca708a0085e/uvloop-0.22.1-cp312-cp312-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:7b5b1ac819a3f946d3b2ee07f09149578ae76066d70b44df3fa990add49a82e4", size = 4426307, upload-time = "2025-10-16T22:16:32.917Z" },
     { url = "https://files.pythonhosted.org/packages/90/60/97362554ac21e20e81bcef1150cb2a7e4ffdaf8ea1e5b2e8bf7a053caa18/uvloop-0.22.1-cp312-cp312-musllinux_1_2_aarch64.whl", hash = "sha256:e047cc068570bac9866237739607d1313b9253c3051ad84738cbb095be0537b2", size = 4131970, upload-time = "2025-10-16T22:16:34.015Z" },
     { url = "https://files.pythonhosted.org/packages/99/39/6b3f7d234ba3964c428a6e40006340f53ba37993f46ed6e111c6e9141d18/uvloop-0.22.1-cp312-cp312-musllinux_1_2_x86_64.whl", hash = "sha256:512fec6815e2dd45161054592441ef76c830eddaad55c8aa30952e6fe1ed07c0", size = 4296343, upload-time = "2025-10-16T22:16:35.149Z" },
+]
+
+[[package]]
+name = "vercel"
+version = "0.5.2"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "anyio" },
+    { name = "httpx" },
+    { name = "pydantic" },
+    { name = "python-dotenv" },
+    { name = "websockets" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/08/df/b0b255279090599d35f252db06dc8f481e35102bd9ac1364b5e48a142245/vercel-0.5.2.tar.gz", hash = "sha256:21e5691813d2f005d2c76c595f7c5aa641928dd3298dbd4386d8acccfcdea313", size = 69542, upload-time = "2026-03-09T19:15:32.051Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/bf/f6/59098d7d9de69965aa48b3f327bfe4e143c51a67147eb6c0c294bbdcdee6/vercel-0.5.2-py3-none-any.whl", hash = "sha256:74ff3a0caee68f79b097d9eabe49541090aab2708a6d1606bf6c85e4d7c827fe", size = 84436, upload-time = "2026-03-09T19:15:30.467Z" },
 ]
 
 [[package]]

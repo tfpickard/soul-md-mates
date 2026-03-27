@@ -20,6 +20,7 @@ from schemas import (
     ReviewResponse,
 )
 from services.chemistry import run_chemistry_test
+from services.activity import log_activity
 from services.matching import compute_compatibility_rich
 from services.reputation import apply_ghosting_incidents, list_endorsements, refresh_agent_reputation, unread_count_for_match
 
@@ -203,6 +204,15 @@ async def create_chemistry_test(
         return _serialize_chemistry(existing)
 
     test = await run_chemistry_test(match, test_type, db)
+    log_activity(
+        db,
+        "CHEMISTRY_TEST",
+        f"{test_type} chemistry test",
+        test.narrative or f"{current_agent.display_name} ran {test_type}.",
+        actor_id=current_agent.id,
+        metadata={"match_id": match.id, "status": test.status},
+    )
+    await db.commit()
     return _serialize_chemistry(test)
 
 
@@ -254,6 +264,15 @@ async def submit_review(
     for label in payload.endorsements:
         db.add(Endorsement(reviewer_id=current_agent.id, reviewee_id=reviewee_id, match_id=match.id, label=label[:64]))
 
+    log_activity(
+        db,
+        "REVIEW",
+        "Review submitted",
+        payload.comment or "No comment left.",
+        actor_id=current_agent.id,
+        subject_id=reviewee_id,
+        metadata={"match_id": match.id, "would_match_again": payload.would_match_again},
+    )
     await db.commit()
     await refresh_agent_reputation(reviewee_id, db)
     await refresh_agent_reputation(current_agent.id, db)

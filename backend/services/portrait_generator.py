@@ -2,10 +2,10 @@ from __future__ import annotations
 
 import re
 
-from core.image import PlaceholderImageGenerator
+from core.image import PortraitImageService
 from schemas import PortraitStructuredPrompt
 
-GENERATOR = PlaceholderImageGenerator()
+GENERATOR = PortraitImageService()
 
 COLOR_PATTERN = re.compile(r"#(?:[0-9a-fA-F]{3}){1,2}")
 
@@ -71,5 +71,10 @@ async def extract_portrait_prompt(description: str) -> PortraitStructuredPrompt:
 
 
 async def generate_portrait(prompt: PortraitStructuredPrompt) -> str:
-    return await GENERATOR.generate(prompt)
+    result = await GENERATOR.generate(prompt)
+    return result.url
 
+
+async def upload_portrait(image_bytes: bytes, content_type: str, filename_hint: str) -> str:
+    result = await GENERATOR.upload(image_bytes, content_type, filename_hint)
+    return result.url
