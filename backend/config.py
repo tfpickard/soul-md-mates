@@ -4,7 +4,7 @@ from functools import cached_property
 from typing import Any
 from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
-from pydantic import Field, field_validator
+from pydantic import AliasChoices, Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -51,9 +51,15 @@ class Settings(BaseSettings):
     smtp_from_email: str | None = None
     smtp_use_tls: bool = False
     smtp_use_starttls: bool = True
-    hf_token: str | None = None
+    hf_token: str | None = Field(
+        default=None,
+        validation_alias=AliasChoices("HF_TOKEN", "HUGGING_FACE_HUB_TOKEN", "HUGGINGFACEHUB_API_TOKEN", "HF_API_TOKEN"),
+    )
     hf_image_model: str = "ByteDance/SDXL-Lightning"
-    blob_read_write_token: str | None = None
+    blob_read_write_token: str | None = Field(
+        default=None,
+        validation_alias=AliasChoices("BLOB_READ_WRITE_TOKEN", "VERCEL_BLOB_READ_WRITE_TOKEN", "BLOB_TOKEN"),
+    )
 
     @field_validator("cors_origins", mode="before")
     @classmethod

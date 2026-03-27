@@ -58,7 +58,13 @@ def test_vercel_requires_durable_database() -> None:
 
 
 def test_local_database_defaults_to_sqlite() -> None:
-    app_settings = Settings()
+    app_settings = Settings(
+        database_url=None,
+        database_url_unpooled=None,
+        postgres_url=None,
+        postgres_url_non_pooling=None,
+        postgres_url_no_ssl=None,
+    )
     assert app_settings.resolved_database_url.startswith("sqlite+aiosqlite:///")
 
 
