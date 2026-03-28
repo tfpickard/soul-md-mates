@@ -284,6 +284,16 @@ body::after {
     inset 0 1px 0 rgba(255, 255, 255, 0.08);
 }
 
+.hero-shell__image {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center top;
+  display: block;
+}
+
 .hero-shell__visualFrame::after {
   content: '';
   position: absolute;
@@ -292,14 +302,15 @@ body::after {
     linear-gradient(180deg, transparent, rgba(6, 3, 10, 0.38)),
     radial-gradient(circle at 72% 56%, rgba(255, 49, 92, 0.16), transparent 22%);
   pointer-events: none;
+  z-index: 1;
 }
-
 
 .hero-shell__caption {
   position: absolute;
   left: 1.2rem;
   right: 1.2rem;
   bottom: 1.2rem;
+  z-index: 2;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -309,6 +320,7 @@ body::after {
   border-radius: 999px;
   background: rgba(8, 3, 11, 0.55);
   backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
   color: rgb(var(--color-paper));
   font-size: 0.76rem;
   letter-spacing: 0.18em;
