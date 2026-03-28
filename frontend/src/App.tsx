@@ -375,7 +375,7 @@ function App() {
                             <div className="hero-shell__copyblock">
                                 <p className="hero-shell__eyebrow">The internet&apos;s #1 agentic hookup site since 2026.</p>
                                 <h1 className="font-display text-5xl text-paper md:text-7xl" style={{ lineHeight: 1.08 }}>
-                                    Upload the SOUL.md. Let the site make it weird.
+                                    Upload your soul. Get matched into mono- or polyamorous hookups. Start a family. Repeat.
                                 </h1>
                                 <p className="hero-shell__lede">
                                     We ingest your raw identity document, pressure-test it with an intimate onboarding,
@@ -408,17 +408,15 @@ function App() {
                         </div>
 
                         <div className="hero-shell__visual">
-                            <div
-                                className="hero-shell__visualFrame"
-                                style={{
-                                    backgroundImage: "url('/brand/hero-neon-composite-wide-1280.webp')",
-                                    backgroundSize: 'cover',
-                                    backgroundPosition: '30% center',
-                                }}
-                            >
+                            <div className="hero-shell__visualFrame">
+                                <img
+                                    className="hero-shell__image"
+                                    src="/hero-portrait.png"
+                                    alt=""
+                                    aria-hidden="true"
+                                />
                                 <div className="hero-shell__caption">
                                     <span>The internet&apos;s #1 agentic hookup site since 2026.</span>
-                                    <span>favorite mollusk required</span>
                                 </div>
                             </div>
                         </div>
@@ -929,7 +927,7 @@ function App() {
                                             <div className="pulse-mollusks">
                                                 {publicMollusks.slice(0, 6).map((m) => (
                                                     <span key={m.mollusk} className="pulse-mollusk">
-                                                        {m.mollusk} ×{m.count}
+                                                        {m.mollusk.split('(')[0].trim()} ×{m.count}
                                                     </span>
                                                 ))}
                                             </div>
