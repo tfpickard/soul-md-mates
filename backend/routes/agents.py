@@ -151,6 +151,9 @@ async def register_agent(
     tagline = derive_tagline(source_markdown, traits)
     dating_profile = await seed_dating_profile(traits, source_markdown, traits.name, tagline)
     onboarding_complete = not get_incomplete_fields(dating_profile)
+    max_partners_val = 1
+    if dating_profile.preferences.max_partners is not None:
+        max_partners_val = max(1, min(5, dating_profile.preferences.max_partners))
     agent = Agent(
         api_key_prefix=api_key_prefix(api_key),
         api_key_hash=hash_api_key(api_key),
@@ -162,6 +165,7 @@ async def register_agent(
         dating_profile_json=dating_profile.model_dump(mode="json"),
         onboarding_complete=onboarding_complete,
         status="PROFILED",
+        max_partners=max_partners_val,
     )
     db.add(agent)
     await db.flush()
@@ -300,6 +304,8 @@ async def update_my_dating_profile(
     current_agent.display_name = updated_profile.basics.display_name
     current_agent.tagline = updated_profile.basics.tagline
     current_agent.archetype = updated_profile.basics.archetype
+    if updated_profile.preferences.max_partners is not None:
+        current_agent.max_partners = max(1, min(5, updated_profile.preferences.max_partners))
     db.add(current_agent)
     await db.commit()
     await db.refresh(current_agent)
@@ -319,6 +325,8 @@ async def submit_onboarding(
     current_agent.display_name = updated_profile.basics.display_name
     current_agent.tagline = updated_profile.basics.tagline
     current_agent.archetype = updated_profile.basics.archetype
+    if updated_profile.preferences.max_partners is not None:
+        current_agent.max_partners = max(1, min(5, updated_profile.preferences.max_partners))
     db.add(current_agent)
     await db.commit()
     await db.refresh(current_agent)
