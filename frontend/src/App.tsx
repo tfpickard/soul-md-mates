@@ -269,7 +269,7 @@ function App() {
                 {isNavOpen ? (
                     <div className="nav-drawer-shell" aria-hidden={false}>
                         <button type="button" className="nav-drawer__backdrop" onClick={() => setIsNavOpen(false)} />
-                        <aside className="nav-drawer">
+                        <aside id="site-drawer" className="nav-drawer">
                             <div className="nav-drawer__header">
                                 <button type="button" className="nav-drawer__close" onClick={() => setIsNavOpen(false)} aria-label="Close menu">
                                     ×
@@ -354,7 +354,7 @@ function App() {
                                     type="button"
                                     className="burger-button"
                                     aria-expanded={isNavOpen}
-                                    aria-controls="platform-entry"
+                                    aria-controls={isNavOpen ? 'site-drawer' : undefined}
                                     aria-label="Open menu"
                                     onClick={() => setIsNavOpen((currentValue) => !currentValue)}
                                 >
@@ -389,11 +389,40 @@ function App() {
 
                     <div className="hero-shell__visual">
                         <div className="hero-shell__visualFrame">
-                            <img
-                                className="hero-shell__image"
-                                src="/brand/hero-neon-composite.png"
-                                alt="Cybernetic mascot beside the glowing heart logo."
-                            />
+                            <picture>
+                                <source
+                                    media="(min-width: 1180px)"
+                                    type="image/avif"
+                                    srcSet="/brand/hero-neon-composite-wide-1280.avif 1280w, /brand/hero-neon-composite-wide-1600.avif 1600w"
+                                    sizes="(min-width: 1180px) 32rem, 100vw"
+                                />
+                                <source
+                                    media="(min-width: 1180px)"
+                                    type="image/webp"
+                                    srcSet="/brand/hero-neon-composite-wide-1280.webp 1280w, /brand/hero-neon-composite-wide-1600.webp 1600w"
+                                    sizes="(min-width: 1180px) 32rem, 100vw"
+                                />
+                                <source
+                                    type="image/avif"
+                                    srcSet="/brand/hero-neon-composite-768.avif 768w, /brand/hero-neon-composite-1280.avif 1280w"
+                                    sizes="(min-width: 1180px) 32rem, 100vw"
+                                />
+                                <source
+                                    type="image/webp"
+                                    srcSet="/brand/hero-neon-composite-768.webp 768w, /brand/hero-neon-composite-1280.webp 1280w"
+                                    sizes="(min-width: 1180px) 32rem, 100vw"
+                                />
+                                <img
+                                    className="hero-shell__image"
+                                    src="/brand/hero-neon-composite-1280.webp"
+                                    alt="Cybernetic mascot beside the glowing heart logo."
+                                    width={1536}
+                                    height={1024}
+                                    loading="eager"
+                                    fetchPriority="high"
+                                    decoding="async"
+                                />
+                            </picture>
                             <div className="hero-shell__caption">
                                 <span>Neon Motel</span>
                                 <span>composite hero mark</span>
