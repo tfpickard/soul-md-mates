@@ -411,7 +411,7 @@ function App() {
                             <div className="hero-shell__visualFrame">
                                 <img
                                     className="hero-shell__image"
-                                    src="/hero-portrait.png"
+                                    src="/hero-portrait.webp"
                                     alt=""
                                     aria-hidden="true"
                                 />
