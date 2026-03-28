@@ -320,7 +320,7 @@ function App() {
 
     return (
         <main className="app-shell px-6 py-8 text-paper md:px-10 md:py-10" ref={mainRef}>
-            <Toast items={toasts} onDismiss={dismissToast} />
+            <Toast toasts={toasts} onDismiss={dismissToast} />
             <div className="app-shell__ambient" aria-hidden="true" />
             <div className="mx-auto max-w-7xl">
                 {isNavOpen ? (
