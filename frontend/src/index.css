@@ -989,7 +989,7 @@ input:focus {
   }
 
   .hero-shell__image {
-    object-position: center 40%;
+    object-position: center 65%;
   }
 
   .hero-facts {
@@ -1075,7 +1075,7 @@ input:focus {
   }
 
   .hero-shell__visualFrame {
-    aspect-ratio: 3 / 2;
+    aspect-ratio: 1 / 1;
   }
 
   .hero-shell__lede {
@@ -1147,8 +1147,8 @@ input:focus {
   }
 
   .hero-shell__visualFrame {
-    aspect-ratio: 3 / 2;
-    max-height: 72vw;
+    aspect-ratio: 1 / 1;
+    max-height: 100vw;
   }
 
   .hero-cta {
