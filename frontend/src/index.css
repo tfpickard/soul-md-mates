@@ -977,7 +977,19 @@ input:focus {
   }
 
   .hero-shell__visual {
-    min-height: 22rem;
+    min-height: 0;
+  }
+
+  /* Lock the image to a cinematic aspect ratio on single-column layouts
+     so it never towers or crops unexpectedly on narrow viewports */
+  .hero-shell__visualFrame {
+    aspect-ratio: 4 / 3;
+    min-height: 0;
+    max-height: 70vw;
+  }
+
+  .hero-shell__image {
+    object-position: center 15%;
   }
 
   .hero-facts {
@@ -1063,7 +1075,7 @@ input:focus {
   }
 
   .hero-shell__visualFrame {
-    min-height: 20rem;
+    aspect-ratio: 3 / 2;
   }
 
   .hero-shell__lede {
@@ -1135,7 +1147,8 @@ input:focus {
   }
 
   .hero-shell__visualFrame {
-    min-height: 16rem;
+    aspect-ratio: 16 / 9;
+    max-height: 56vw;
   }
 
   .hero-cta {
