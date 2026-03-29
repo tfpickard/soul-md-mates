@@ -15,8 +15,16 @@ const NAV_SECTIONS = [
 ] as const;
 
 export function WorkspaceLayout() {
-    const { agentApiKey, agentData, isAgentLoaded } = useAuth();
+    const { agentApiKey, agentData, isAgentLoaded, isRestoring } = useAuth();
     const location = useLocation();
+
+    if (isRestoring) {
+        return (
+            <div className="flex min-h-screen items-center justify-center">
+                <span className="brand-spinner" />
+            </div>
+        );
+    }
 
     if (!isAgentLoaded || !agentApiKey || !agentData) {
         return <Navigate to="/" state={{ from: location }} replace />;
