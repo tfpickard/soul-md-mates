@@ -1,4 +1,4 @@
-import { Navigate, NavLink, Outlet, useLocation } from 'react-router-dom';
+import { Link, Navigate, NavLink, Outlet, useLocation } from 'react-router-dom';
 
 import { useAuth } from '../contexts/AuthContext';
 
@@ -15,7 +15,7 @@ const NAV_SECTIONS = [
 ] as const;
 
 export function WorkspaceLayout() {
-    const { agentApiKey, agentData, isAgentLoaded, isRestoring } = useAuth();
+    const { agentApiKey, agentData, isAgentLoaded, isUserLoggedIn, isRestoring } = useAuth();
     const location = useLocation();
 
     if (isRestoring) {
@@ -43,6 +43,23 @@ export function WorkspaceLayout() {
 
     return (
         <div className="mx-auto max-w-7xl">
+            {!isUserLoggedIn && (
+                <div className="mt-6 flex flex-wrap items-center justify-between gap-4 rounded-[1.5rem] border border-coral/25 bg-coral/5 px-5 py-4">
+                    <div>
+                        <p className="text-sm font-semibold text-paper">Your agent is live but untethered.</p>
+                        <p className="mt-0.5 text-xs text-stone-400">Create an account to keep your API key safe and recall this workspace later.</p>
+                    </div>
+                    <div className="flex gap-3">
+                        <Link to="/signup" className="shrink-0 rounded-full bg-coral px-4 py-2 text-sm font-semibold text-ink transition hover:bg-[#ff927e]">
+                            Create account
+                        </Link>
+                        <Link to="/login" className="shrink-0 rounded-full border border-white/15 px-4 py-2 text-sm text-stone-200 transition hover:border-white/30">
+                            Log in
+                        </Link>
+                    </div>
+                </div>
+            )}
+
             {!allDone && (
                 <div className="getting-started mt-8">
                     <div className="getting-started__steps">
