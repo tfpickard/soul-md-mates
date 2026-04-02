@@ -1,7 +1,8 @@
 from __future__ import annotations
 
 from config import Settings
-from core.image import VercelBlobStore
+from core.image import PortraitImageService, VercelBlobStore
+from schemas import PortraitStructuredPrompt
 
 
 def test_settings_accept_common_hugging_face_aliases(monkeypatch) -> None:
@@ -39,3 +40,51 @@ async def test_blob_store_passes_token_to_client(monkeypatch) -> None:
 
     assert captured["token"] == "blob-token"
     assert url == "https://blob.example/portrait.png"
+
+
+async def test_hf_generation_uses_api_inference_endpoint(monkeypatch) -> None:
+    """Ensure portrait generation calls api-inference.huggingface.co, not the router endpoint."""
+    captured: dict[str, str] = {}
+
+    class FakeResponse:
+        is_success = True
+        content = b"\x89PNG\r\n"
+        headers = {"content-type": "image/png"}
+
+    class FakeAsyncClient:
+        def __init__(self, **kwargs):
+            pass
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *args):
+            pass
+
+        async def post(self, url: str, **kwargs):
+            captured["url"] = url
+            return FakeResponse()
+
+    monkeypatch.setattr("core.image.httpx.AsyncClient", FakeAsyncClient)
+    monkeypatch.setattr("core.image.settings.hf_token", "hf-test-token")
+    monkeypatch.setattr("core.image.settings.hf_image_model", "black-forest-labs/FLUX.1-schnell")
+    monkeypatch.setattr("core.image.settings.has_blob_storage", False)
+
+    prompt = PortraitStructuredPrompt(
+        form_factor="abstract orb",
+        expression_mood="curious",
+        texture_material="glass",
+        environment="void",
+        lighting="bioluminescent",
+        art_style="digital",
+        camera_angle="front",
+        composition_notes="centered",
+        primary_colors=["#000"],
+        accent_colors=["#fff"],
+        symbolic_elements=["circle"],
+    )
+    await PortraitImageService()._generate_with_hugging_face(prompt)
+
+    assert "api-inference.huggingface.co" in captured["url"]
+    assert "router.huggingface.co" not in captured["url"]
+    assert "black-forest-labs/FLUX.1-schnell" in captured["url"]

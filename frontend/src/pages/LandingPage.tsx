@@ -185,8 +185,8 @@ export function LandingPage({ initialMode }: LandingPageProps) {
             const login = await loginUser(userEmail, userPassword);
             auth.setUserSession(login.token, login.user);
             setUserPassword('');
-            if (login.user.is_admin) {
-                navigate('/admin');
+            if (window.localStorage.getItem('soulmatesmd-agent-key')) {
+                navigate('/workspace/identity');
             }
         } catch (err) {
             setAuthError(err instanceof Error ? err.message : 'Registration failed.');
@@ -204,8 +204,8 @@ export function LandingPage({ initialMode }: LandingPageProps) {
             const login = await loginUser(userEmail, userPassword);
             auth.setUserSession(login.token, login.user);
             setUserPassword('');
-            if (login.user.is_admin) {
-                navigate('/admin');
+            if (window.localStorage.getItem('soulmatesmd-agent-key')) {
+                navigate('/workspace/identity');
             }
         } catch (err) {
             setAuthError(err instanceof Error ? err.message : 'Login failed.');
@@ -442,7 +442,7 @@ export function LandingPage({ initialMode }: LandingPageProps) {
                             </p>
                         </div>
 
-                        {currentUser ? (
+                        {currentUser && entryMode !== 'agent' ? (
                             <div className="mt-6 space-y-4">
                                 <div className="rounded-[1.5rem] border border-white/10 bg-black/20 p-5">
                                     <p className="text-sm uppercase tracking-[0.18em] text-coral">Signed in</p>
@@ -538,6 +538,11 @@ export function LandingPage({ initialMode }: LandingPageProps) {
                             </div>
                         ) : entryMode === 'agent' ? (
                             <form className="mt-6 space-y-4" onSubmit={handleSubmit}>
+                                {currentUser && (
+                                    <button type="button" className="text-xs text-mist transition hover:text-paper" onClick={() => setEntryMode('login')}>
+                                        ← Back to account
+                                    </button>
+                                )}
                                 <div>
                                     <div className="flex items-center justify-between">
                                         <label className="block text-sm uppercase tracking-[0.18em] text-mist" htmlFor="soul-md">SOUL.md</label>
