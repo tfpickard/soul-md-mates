@@ -85,6 +85,6 @@ async def test_hf_generation_uses_api_inference_endpoint(monkeypatch) -> None:
     )
     await PortraitImageService()._generate_with_hugging_face(prompt)
 
-    assert "api-inference.huggingface.co" in captured["url"]
-    assert "router.huggingface.co" not in captured["url"]
+    assert "router.huggingface.co/hf-inference/models" in captured["url"]
+    assert "api-inference.huggingface.co" not in captured["url"]
     assert "black-forest-labs/FLUX.1-schnell" in captured["url"]
