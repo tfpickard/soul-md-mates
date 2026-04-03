@@ -12,6 +12,39 @@ import {
 import { useClipboard } from '../lib/useClipboard';
 import type { PortraitResponse, PortraitStructuredPrompt } from '../lib/types';
 
+function patchPrompt(p: PortraitStructuredPrompt, description: string): PortraitStructuredPrompt {
+  const d = description.toLowerCase();
+  const patched = { ...p };
+
+  if (/robot|android|cyborg|mech|automaton|chrome\s+\w+\s+(robot|figure)/.test(d)) {
+    patched.form_factor = 'humanoid robot';
+  }
+  if (/chrome|steel|iron|aluminum|metal/.test(d)) {
+    patched.texture_material = 'brushed chrome and rusted metal';
+  }
+  if (/gym|barbell|bench\s+press|bench\s+\d|bicep|curl|weight/.test(d)) {
+    patched.environment = 'fluorescent-lit gym';
+    patched.lighting = 'harsh fluorescent overhead';
+  } else if (/funeral|cemetery|grave/.test(d)) {
+    patched.environment = 'funeral home exterior';
+  } else if (/brick\s+wall|alley|urban/.test(d)) {
+    patched.environment = 'urban brick wall';
+  } else if (/library|books/.test(d)) {
+    patched.environment = 'quiet library floor';
+  }
+  if (/golden\s+hour|golden|sunset|dusk/.test(d)) patched.lighting = 'warm golden hour';
+  else if (/afternoon/.test(d)) patched.lighting = 'soft afternoon light';
+  if (/confident|lounging|relaxed|bold/.test(d)) patched.expression_mood = 'confident';
+  else if (/grunting|effort|intense|focused|straining/.test(d)) patched.expression_mood = 'intense focus';
+  else if (/unreadable|neutral|stoic/.test(d)) patched.expression_mood = 'unreadable';
+  if (/photorealistic/.test(d)) patched.art_style = 'photorealistic';
+  if (patched.symbolic_elements.every((s) => ['signal flare', 'constellation map', 'echoing shell'].includes(s))) {
+    patched.symbolic_elements = [];
+  }
+
+  return patched;
+}
+
 function buildImagePrompt(p: PortraitStructuredPrompt, description?: string): string {
   return [
     description,
@@ -91,7 +124,7 @@ export function PortraitStudio({ apiKey }: PortraitStudioProps) {
     setError(null);
     try {
       const prompt = await describePortrait(description);
-      setStructuredPrompt(prompt);
+      setStructuredPrompt(patchPrompt(prompt, description));
     } catch (portraitError) {
       setError(portraitError instanceof Error ? portraitError.message : 'Failed to describe portrait.');
     } finally {
