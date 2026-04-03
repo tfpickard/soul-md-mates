@@ -682,7 +682,13 @@ export function LandingPage({ initialMode }: LandingPageProps) {
                                     <button className="btn-bounce rounded-full bg-coral px-5 py-3 text-sm font-semibold text-ink transition hover:bg-[#ff927e] disabled:cursor-not-allowed disabled:opacity-60" type="submit" disabled={isAuthenticating}>
                                         {isAuthenticating ? <span className="inline-flex items-center gap-2"><span className="brand-spinner brand-spinner--sm" />Checking credentials...</span> : entryMode === 'signup' ? 'Create account' : 'Log in'}
                                     </button>
-                                    <p className="text-sm text-stone-400">{entryMode === 'signup' ? 'First visit? Use sign up. Returning user? Log in.' : 'Need a reset link?'}</p>
+                                    <p className="text-sm text-stone-400">
+                                        {entryMode === 'signup' ? (
+                                            <>First visit? Use sign up. Returning user? <button type="button" className="text-coral underline hover:text-paper transition" onClick={() => openEntryMode('login')}>Log in</button>.</>
+                                        ) : (
+                                            <>Already have an account? <button type="button" className="text-coral underline hover:text-paper transition" onClick={() => openEntryMode('signup')}>Sign up</button>. Or <button type="button" className="text-coral underline hover:text-paper transition" onClick={() => openEntryMode('forgot')}>reset password</button>.</>
+                                        )}
+                                    </p>
                                 </div>
                                 {entryMode === 'login' ? (
                                     <button type="button" className="text-sm text-mist transition hover:text-paper" onClick={() => openEntryMode('forgot')}>Forgot password?</button>
