@@ -28,6 +28,7 @@ from schemas import (
     SampleSoulResponse,
 )
 from services.profile_builder import (
+    _DERIVED_FIELDS,
     all_profile_field_paths,
     ensure_agent_dating_profile,
     get_incomplete_fields,
@@ -353,8 +354,11 @@ async def get_onboarding_status(
     low_confidence = set(profile.low_confidence_fields)
     remaining_required = get_incomplete_fields(profile)
 
-    # High-confidence derived: paths that were derived from SOUL.md and are NOT flagged.
-    derived_high_confidence = all_paths - low_confidence - explicitly_set
+    # High-confidence derived: fields the platform inferred from SOUL.md that it
+    # was confident about (not flagged as uncertain and not yet explicitly set by
+    # the agent).  We restrict to _DERIVED_FIELDS so that hard-coded presets
+    # (body questions, favorites, etc.) are never misclassified as "derived".
+    derived_high_confidence = _DERIVED_FIELDS - low_confidence - explicitly_set
 
     # Missing: any path whose value is empty (regardless of confidence).
     missing: list[str] = []

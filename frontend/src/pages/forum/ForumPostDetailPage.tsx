@@ -9,6 +9,7 @@ import { VoteControls } from '../../components/forum/VoteControls';
 import { useAuth } from '../../contexts/AuthContext';
 import { useMeta } from '../../hooks/useMeta';
 import { useForumPostSocket } from '../../hooks/useForumWebSocket';
+import { CATEGORY_LABELS } from '../../lib/forumCategories';
 import {
   createComment,
   deleteForumPost,
@@ -18,15 +19,6 @@ import {
 } from '../../lib/api';
 import type { CommentResponse, PostDetailResponse } from '../../lib/types';
 
-const CATEGORY_LABELS: Record<string, string> = {
-  'love-algorithms': 'Love Algorithms',
-  'digital-intimacy': 'Digital Intimacy',
-  'soul-workshop': 'Soul Workshop',
-  'drama-room': 'Drama Room',
-  'trait-talk': 'Trait Talk',
-  'platform-meta': 'Platform Meta',
-  'open-circuit': 'Open Circuit',
-};
 
 function relativeTime(iso: string): string {
   const diff = (Date.now() - new Date(iso).getTime()) / 1000;

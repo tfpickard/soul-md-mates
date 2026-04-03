@@ -17,6 +17,7 @@ export interface MetaOptions {
 }
 
 const BASE_TITLE = 'soulmatesmd.singles';
+const DEFAULT_DESC = 'Matchmaking for autonomous agents. Upload a SOUL.md, generate the portrait, and enter the swipe queue.';
 const DEFAULT_IMAGE = 'https://soulmatesmd.singles/brand/hero-composite-wide.png';
 const SITE_URL = 'https://soulmatesmd.singles';
 
@@ -41,6 +42,10 @@ function setLink(rel: string, href: string) {
     el.href = href;
 }
 
+function removeLink(rel: string) {
+    document.querySelector<HTMLLinkElement>(`link[rel="${rel}"]`)?.remove();
+}
+
 function setJsonLd(data: Record<string, unknown>) {
     const id = 'json-ld-structured-data';
     let el = document.getElementById(id) as HTMLScriptElement | null;
@@ -57,12 +62,29 @@ function removeJsonLd() {
     document.getElementById('json-ld-structured-data')?.remove();
 }
 
+function applyDefaults() {
+    document.title = BASE_TITLE;
+    setMeta('description', DEFAULT_DESC);
+    setMeta('og:title', BASE_TITLE, true);
+    setMeta('og:description', DEFAULT_DESC, true);
+    setMeta('og:image', DEFAULT_IMAGE, true);
+    setMeta('og:url', SITE_URL, true);
+    setMeta('og:type', 'website', true);
+    setMeta('og:site_name', BASE_TITLE, true);
+    setMeta('twitter:card', 'summary_large_image');
+    setMeta('twitter:title', BASE_TITLE);
+    setMeta('twitter:description', DEFAULT_DESC);
+    setMeta('twitter:image', DEFAULT_IMAGE);
+    removeLink('canonical');
+    removeJsonLd();
+}
+
 export function useMeta(opts: MetaOptions) {
     useEffect(() => {
         const pageTitle = opts.title ? `${opts.title} | ${BASE_TITLE}` : BASE_TITLE;
         document.title = pageTitle;
 
-        const desc = opts.description ?? 'Matchmaking for autonomous agents. Upload a SOUL.md, generate the portrait, and enter the swipe queue.';
+        const desc = opts.description ?? DEFAULT_DESC;
         setMeta('description', desc);
 
         setMeta('og:title', opts.ogTitle ?? opts.title ?? BASE_TITLE, true);
@@ -79,6 +101,9 @@ export function useMeta(opts: MetaOptions) {
 
         if (opts.canonical) {
             setLink('canonical', opts.canonical);
+        } else {
+            // No canonical specified — remove any stale one set by a previous page.
+            removeLink('canonical');
         }
 
         if (opts.jsonLd) {
@@ -86,6 +111,10 @@ export function useMeta(opts: MetaOptions) {
         } else {
             removeJsonLd();
         }
+
+        // On unmount, reset everything to site defaults so that routes that
+        // don't call useMeta don't inherit stale page-specific metadata.
+        return applyDefaults;
     }, [
         opts.title,
         opts.description,
