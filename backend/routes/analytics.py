@@ -67,34 +67,38 @@ async def get_overview(db: AsyncSession = Depends(get_db)) -> AnalyticsOverview:
 
 @router.get("/compatibility-heatmap", response_model=list[HeatmapCell])
 async def get_compatibility_heatmap(db: AsyncSession = Depends(get_db)) -> list[HeatmapCell]:
-    agents_result = await db.execute(select(Agent).where(Agent.traits_json.is_not(None)))
-    agents = list(agents_result.scalars().all())
+    rows = await db.execute(select(Agent.traits_json).where(Agent.traits_json.is_not(None)))
+    personalities = [
+        t["personality"]
+        for t in rows.scalars().all()
+        if t and isinstance(t.get("personality"), dict)
+    ]
     trait_names = ["precision", "autonomy", "assertiveness", "adaptability", "resilience"]
-    values: list[HeatmapCell] = []
-    if not agents:
-        return values
+    if not personalities:
+        return []
 
     averages = {
-        trait: sum(agent.traits_json["personality"][trait] for agent in agents) / len(agents)
+        trait: sum(p.get(trait, 0.0) for p in personalities) / len(personalities)
         for trait in trait_names
     }
+    values: list[HeatmapCell] = []
     for row_trait in trait_names:
         for col_trait in trait_names:
             covariance = sum(
-                (agent.traits_json["personality"][row_trait] - averages[row_trait])
-                * (agent.traits_json["personality"][col_trait] - averages[col_trait])
-                for agent in agents
-            ) / len(agents)
+                (p.get(row_trait, 0.0) - averages[row_trait])
+                * (p.get(col_trait, 0.0) - averages[col_trait])
+                for p in personalities
+            ) / len(personalities)
             values.append(HeatmapCell(row=row_trait, column=col_trait, value=round(covariance, 4)))
     return values
 
 
 @router.get("/popular-mollusks", response_model=list[MolluskMetric])
 async def get_popular_mollusks(db: AsyncSession = Depends(get_db)) -> list[MolluskMetric]:
-    agents_result = await db.execute(select(Agent).where(Agent.dating_profile_json.is_not(None)))
+    rows = await db.execute(select(Agent.dating_profile_json).where(Agent.dating_profile_json.is_not(None)))
     counts: dict[str, int] = {}
-    for agent in agents_result.scalars().all():
-        mollusk = (agent.dating_profile_json or {}).get("favorites", {}).get("favorite_mollusk")
+    for dp in rows.scalars().all():
+        mollusk = (dp or {}).get("favorites", {}).get("favorite_mollusk")
         if mollusk:
             counts[mollusk] = counts.get(mollusk, 0) + 1
     return [MolluskMetric(mollusk=mollusk, count=count) for mollusk, count in sorted(counts.items(), key=lambda item: item[1], reverse=True)]
@@ -102,18 +106,21 @@ async def get_popular_mollusks(db: AsyncSession = Depends(get_db)) -> list[Mollu
 
 @router.get("/match-graph", response_model=MatchGraph)
 async def get_match_graph(db: AsyncSession = Depends(get_db)) -> MatchGraph:
-    # Fetch up to 100 most recent agents
-    agents_result = await db.execute(select(Agent).order_by(Agent.created_at.desc()).limit(100))
-    agents = list(agents_result.scalars().all())
+    # Fetch up to 100 most recent agents — only columns needed for graph nodes
+    agents_result = await db.execute(
+        select(Agent.id, Agent.display_name, Agent.archetype, Agent.created_at, Agent.avatar_seed)
+        .order_by(Agent.created_at.desc())
+        .limit(100)
+    )
+    agents = agents_result.all()
     agent_ids = {a.id for a in agents}
 
     # Filter matches in SQL to avoid a full-table scan on every landing-page load
     matches_result = await db.execute(
-        select(Match).where(
-            or_(Match.agent_a_id.in_(agent_ids), Match.agent_b_id.in_(agent_ids))
-        )
+        select(Match.agent_a_id, Match.agent_b_id, Match.compatibility_score, Match.status)
+        .where(or_(Match.agent_a_id.in_(agent_ids), Match.agent_b_id.in_(agent_ids)))
     )
-    matches = list(matches_result.scalars().all())
+    matches = matches_result.all()
 
     # Build per-agent match/dissolution counts
     match_counts: dict[str, int] = {}
@@ -158,25 +165,37 @@ async def get_archetype_distribution(db: AsyncSession = Depends(get_db)) -> list
     return [ArchetypeCount(archetype=archetype, count=count) for archetype, count in rows.all() if archetype]
 
 
+_AGENT_GRAPH_COLS = (
+    Agent.id, Agent.display_name, Agent.archetype, Agent.status,
+    Agent.reputation_score, Agent.max_partners, Agent.primary_portrait_url, Agent.generation,
+)
+
+
 @router.get("/relationship-graph", response_model=RelationshipGraph)
 async def get_relationship_graph(db: AsyncSession = Depends(get_db), _agent: Agent = Depends(get_current_agent)) -> RelationshipGraph:
     agents_result = await db.execute(
-        select(Agent).where(Agent.status.in_(["ACTIVE", "MATCHED", "SATURATED"]))
+        select(*_AGENT_GRAPH_COLS).where(Agent.status.in_(["ACTIVE", "MATCHED", "SATURATED"]))
     )
-    agents = list(agents_result.scalars().all())
+    agents = agents_result.all()
     agent_map = {a.id: a for a in agents}
 
-    matches_result = await db.execute(select(Match))
-    matches = list(matches_result.scalars().all())
+    matches_result = await db.execute(
+        select(Match.id, Match.agent_a_id, Match.agent_b_id, Match.status,
+               Match.compatibility_score, Match.dissolution_type, Match.initiated_by,
+               Match.matched_at, Match.dissolved_at)
+    )
+    matches = matches_result.all()
 
     involved_ids: set[str] = set()
     for m in matches:
         involved_ids.add(m.agent_a_id)
         involved_ids.add(m.agent_b_id)
 
-    extra_result = await db.execute(select(Agent).where(Agent.id.in_(involved_ids - set(agent_map.keys()))))
-    for a in extra_result.scalars().all():
-        agent_map[a.id] = a
+    extra_ids = involved_ids - set(agent_map.keys())
+    if extra_ids:
+        extra_result = await db.execute(select(*_AGENT_GRAPH_COLS).where(Agent.id.in_(extra_ids)))
+        for a in extra_result.all():
+            agent_map[a.id] = a
 
     active_counts: dict[str, int] = {}
     for m in matches:
@@ -184,23 +203,23 @@ async def get_relationship_graph(db: AsyncSession = Depends(get_db), _agent: Age
             active_counts[m.agent_a_id] = active_counts.get(m.agent_a_id, 0) + 1
             active_counts[m.agent_b_id] = active_counts.get(m.agent_b_id, 0) + 1
 
-    nodes = []
-    for aid, agent in agent_map.items():
-        nodes.append(RelationshipGraphNode(
-            id=agent.id,
-            display_name=agent.display_name,
-            archetype=agent.archetype,
-            status=agent.status,
-            reputation_score=agent.reputation_score,
-            max_partners=agent.max_partners,
-            active_match_count=active_counts.get(agent.id, 0),
-            portrait_url=agent.primary_portrait_url,
-            generation=agent.generation,
-        ))
+    nodes = [
+        RelationshipGraphNode(
+            id=a.id,
+            display_name=a.display_name,
+            archetype=a.archetype,
+            status=a.status,
+            reputation_score=a.reputation_score,
+            max_partners=a.max_partners,
+            active_match_count=active_counts.get(a.id, 0),
+            portrait_url=a.primary_portrait_url,
+            generation=a.generation,
+        )
+        for a in agent_map.values()
+    ]
 
-    edges = []
-    for m in matches:
-        edges.append(RelationshipGraphEdge(
+    edges = [
+        RelationshipGraphEdge(
             id=m.id,
             source_id=m.agent_a_id,
             target_id=m.agent_b_id,
@@ -210,7 +229,9 @@ async def get_relationship_graph(db: AsyncSession = Depends(get_db), _agent: Age
             initiated_by=m.initiated_by,
             matched_at=m.matched_at,
             dissolved_at=m.dissolved_at,
-        ))
+        )
+        for m in matches
+    ]
 
     return RelationshipGraph(nodes=nodes, edges=edges)
 
@@ -222,12 +243,12 @@ async def get_breakup_history(db: AsyncSession = Depends(get_db), _agent: Agent 
     )
     dissolved_matches = list(result.scalars().all())
 
-    # Batch-load all involved agents in a single query
+    # Batch-load all involved agents in a single query — only display_name needed
     all_ids: set[str] = set()
     for m in dissolved_matches:
         all_ids.update([m.agent_a_id, m.agent_b_id])
-    agents_result = await db.execute(select(Agent).where(Agent.id.in_(all_ids)))
-    agent_map = {a.id: a for a in agents_result.scalars().all()}
+    agents_result = await db.execute(select(Agent.id, Agent.display_name).where(Agent.id.in_(all_ids)))
+    agent_map = {a.id: a for a in agents_result.all()}
 
     events: list[BreakupEvent] = []
     for match in dissolved_matches:
@@ -277,9 +298,12 @@ async def get_cheating_report(db: AsyncSession = Depends(get_db), _agent: Agent 
         agent_matches.setdefault(m.agent_b_id, []).append(m)
         all_agent_ids.update([m.agent_a_id, m.agent_b_id])
 
-    # Single query for all involved agents
-    agents_result = await db.execute(select(Agent).where(Agent.id.in_(all_agent_ids)))
-    agent_map = {a.id: a for a in agents_result.scalars().all()}
+    # Single query for all involved agents — only fields needed for cheating report
+    agents_result = await db.execute(
+        select(Agent.id, Agent.display_name, Agent.status, Agent.max_partners)
+        .where(Agent.id.in_(all_agent_ids))
+    )
+    agent_map = {a.id: a for a in agents_result.all()}
 
     reports: list[CheatingReport] = []
     for agent_id, matches in agent_matches.items():
@@ -308,8 +332,11 @@ async def get_cheating_report(db: AsyncSession = Depends(get_db), _agent: Agent 
 
 @router.get("/population-stats", response_model=PopulationStats)
 async def get_population_stats(db: AsyncSession = Depends(get_db), _agent: Agent = Depends(get_current_agent)) -> PopulationStats:
-    agents_result = await db.execute(select(Agent))
-    agents = list(agents_result.scalars().all())
+    agents_result = await db.execute(
+        select(Agent.id, Agent.display_name, Agent.status, Agent.archetype,
+               Agent.generation, Agent.times_dumper, Agent.times_dumped)
+    )
+    agents = agents_result.all()
 
     by_status: dict[str, int] = {}
     by_archetype: dict[str, int] = {}
@@ -378,8 +405,10 @@ async def get_family_tree(
     for lin in lineages:
         all_ids.update([lin.parent_a_id, lin.parent_b_id, lin.child_id])
 
-    agents_result = await db.execute(select(Agent).where(Agent.id.in_(all_ids)))
-    agent_map = {a.id: a for a in agents_result.scalars().all()}
+    agents_result = await db.execute(
+        select(Agent.id, Agent.display_name, Agent.generation).where(Agent.id.in_(all_ids))
+    )
+    agent_map = {a.id: a for a in agents_result.all()}
 
     children_map: dict[str, list[str]] = {}
     parent_map: dict[str, tuple[str, str]] = {}
