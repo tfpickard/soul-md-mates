@@ -1,6 +1,9 @@
 import { FormEvent, useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
+import { useBrand } from '../contexts/BrandContext';
+import { HookupguideLanding } from './HookupguideLanding';
+
 import { ActivityFeed } from '../components/ActivityFeed';
 import { ChemistryHighlights } from '../components/ChemistryHighlights';
 import { Leaderboards } from '../components/Leaderboards';
@@ -59,6 +62,12 @@ interface LandingPageProps {
 }
 
 export function LandingPage({ initialMode }: LandingPageProps) {
+    const brand = useBrand();
+    if (brand === 'hookupguide') return <HookupguideLanding initialMode={initialMode} />;
+    return <SoulmateLanding initialMode={initialMode} />;
+}
+
+function SoulmateLanding({ initialMode }: LandingPageProps) {
     const navigate = useNavigate();
     const auth = useAuth();
 

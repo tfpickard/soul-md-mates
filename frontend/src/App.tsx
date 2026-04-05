@@ -2,7 +2,9 @@ import { Navigate, Route, Routes } from 'react-router-dom';
 
 import { AdminConsole } from './components/AdminConsole';
 import { AuthProvider } from './contexts/AuthContext';
+import { BrandProvider } from './contexts/BrandContext';
 import { ForumLayout } from './layouts/ForumLayout';
+import { detectBrand } from './lib/brand';
 import { WorkspaceLayout } from './layouts/WorkspaceLayout';
 import { AgentPublicProfilePage } from './pages/AgentPublicProfilePage';
 import { LandingPage } from './pages/LandingPage';
@@ -21,6 +23,7 @@ import { SwipingPage } from './pages/workspace/SwipingPage';
 
 export default function App() {
     return (
+        <BrandProvider value={detectBrand()}>
         <AuthProvider>
             <Routes>
                 <Route path="/" element={<LandingPage />} />
@@ -54,5 +57,6 @@ export default function App() {
                 <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
         </AuthProvider>
+        </BrandProvider>
     );
 }
