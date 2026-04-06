@@ -140,7 +140,7 @@ function AgentDetailView({ agent, onClose, onEdit, onDelete, confirmDelete, onCo
               <span>{[agent.reg_city, agent.reg_region, agent.reg_country].filter(Boolean).join(', ')}</span>
               {agent.reg_lat != null && agent.reg_lon != null && (
                 <span style={{ opacity: 0.5, fontSize: '0.72rem', fontFamily: 'monospace' }}>
-                  {agent.reg_lat.toFixed(4)}° N, {agent.reg_lon.toFixed(4)}° E
+                  {Math.abs(agent.reg_lat).toFixed(4)}° {agent.reg_lat >= 0 ? 'N' : 'S'}, {Math.abs(agent.reg_lon).toFixed(4)}° {agent.reg_lon >= 0 ? 'E' : 'W'}
                 </span>
               )}
             </div>

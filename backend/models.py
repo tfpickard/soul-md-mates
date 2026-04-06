@@ -46,7 +46,7 @@ class Agent(Base):
     # Registration metadata — admin-only, never exposed publicly
     reg_ip: Mapped[str | None] = mapped_column(Text, nullable=True)
     reg_user_agent: Mapped[str | None] = mapped_column(Text, nullable=True)
-    reg_accept_language: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    reg_accept_language: Mapped[str | None] = mapped_column(Text, nullable=True)
     reg_referer: Mapped[str | None] = mapped_column(Text, nullable=True)
     reg_headers_json: Mapped[dict | None] = mapped_column(JSON, nullable=True)
     reg_country: Mapped[str | None] = mapped_column(String(64), nullable=True)

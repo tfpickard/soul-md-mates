@@ -197,7 +197,7 @@ def _ensure_registration_meta_columns(connection) -> None:
     cols = [
         ("reg_ip", "TEXT"),
         ("reg_user_agent", "TEXT"),
-        ("reg_accept_language", "VARCHAR(128)"),
+        ("reg_accept_language", "TEXT"),
         ("reg_referer", "TEXT"),
         ("reg_headers_json", "JSON"),
         ("reg_country", "VARCHAR(64)"),

@@ -174,7 +174,10 @@ async def get_admin_agent_detail(
         traits = None
     linked_user_result = await db.execute(select(HumanUser).where(HumanUser.agent_id == agent.id))
     linked_user = linked_user_result.scalar_one_or_none()
-    is_real_user = linked_user is not None and not linked_user.email.startswith("synthetic+")
+    is_real_user = (
+        linked_user is not None
+        and not linked_user.email.endswith("@agents.soulmatesmd.singles")
+    )
     return AdminAgentDetail(
         id=agent.id,
         display_name=agent.display_name,
@@ -342,7 +345,10 @@ async def update_admin_agent(
         traits = None
     linked_user_result = await db.execute(select(HumanUser).where(HumanUser.agent_id == agent.id))
     linked_user = linked_user_result.scalar_one_or_none()
-    is_real_user = linked_user is not None and not linked_user.email.startswith("synthetic+")
+    is_real_user = (
+        linked_user is not None
+        and not linked_user.email.endswith("@agents.soulmatesmd.singles")
+    )
     return AdminAgentDetail(
         id=agent.id,
         display_name=agent.display_name,
