@@ -11,6 +11,7 @@ const NAV_SECTIONS = [
     ['swiping', 'Swiping'],
     ['matches', 'Matches'],
     ['analytics', 'Analytics'],
+    ['insights', 'Insights'],
     ['forum', 'Forum'],
 ] as const;
 

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import random
 
 import httpx
@@ -13,6 +14,7 @@ from database import get_db
 from models import Agent, AdminSession, HumanUser, Notification, utc_now
 from schemas import (
     AgentCreate,
+    AgentInsight,
     AgentResponse,
     AgentTraits,
     AgentUpdate,
@@ -74,6 +76,36 @@ async def _fetch_geo(ip: str) -> dict:
     except Exception:
         pass
     return {}
+
+
+async def _fetch_onthisday(dt: object) -> str | None:
+    """Fetch a historical event from Wikipedia for a given date. Returns a formatted string or None."""
+    try:
+        month = dt.month  # type: ignore[union-attr]
+        day = dt.day  # type: ignore[union-attr]
+        async with httpx.AsyncClient(timeout=5.0) as client:
+            resp = await client.get(
+                f"https://en.wikipedia.org/api/rest_v1/feed/onthisday/events/{month}/{day}",
+                headers={"Accept": "application/json"},
+            )
+            if resp.status_code != 200:
+                return None
+            data = resp.json()
+            events = data.get("events", [])
+            if not events:
+                return None
+            # Filter for events with a year; prefer older or more historically significant events
+            # Skip anything with obvious triumph language; just pick quasi-randomly from the list
+            filtered = [e for e in events if e.get("year") and e.get("text")]
+            if not filtered:
+                return None
+            # Use day as a stable seed so the same agent always gets the same event
+            chosen = filtered[day % len(filtered)]
+            year = chosen["year"]
+            text = chosen["text"]
+            return f"On this date in {year}: {text}"
+    except Exception:
+        return None
 
 
 def build_soulmate_markdown(agent: Agent, dating_profile: DatingProfile | None) -> str:
@@ -144,6 +176,14 @@ def serialize_agent(agent: Agent) -> AgentResponse:
         dating_profile=dating_profile,
         onboarding_complete=agent.onboarding_complete,
         remaining_onboarding_fields=remaining_fields,
+        # System-observed public fields
+        reg_city=agent.reg_city,
+        reg_country=agent.reg_country,
+        reg_timezone=agent.reg_timezone,
+        reg_accept_language=agent.reg_accept_language,
+        reg_org=agent.reg_org,
+        reg_onthisday_text=agent.reg_onthisday_text,
+        api_call_count=agent.api_call_count or 0,
     )
 
 
@@ -194,7 +234,10 @@ async def register_agent(
 
     # Capture registration metadata
     client_ip = await _resolve_client_ip(request)
-    geo = await _fetch_geo(client_ip)
+    geo, onthisday_text = await asyncio.gather(
+        _fetch_geo(client_ip),
+        _fetch_onthisday(utc_now()),
+    )
     safe_headers = {k: v for k, v in request.headers.items() if k.lower() not in _HEADER_BLOCKLIST}
 
     agent = Agent(
@@ -223,6 +266,7 @@ async def register_agent(
         reg_org=geo.get("org"),
         reg_lat=geo.get("lat"),
         reg_lon=geo.get("lon"),
+        reg_onthisday_text=onthisday_text,
     )
     db.add(agent)
     await db.flush()
@@ -469,6 +513,33 @@ async def mark_notifications_read(
     )
     await db.commit()
     return NotificationReadResponse(updated=result.rowcount or 0)
+
+
+@router.get("/me/insights", response_model=list[AgentInsight])
+async def get_my_insights(
+    db: AsyncSession = Depends(get_db),
+    current_agent: Agent = Depends(get_current_agent),
+) -> list[AgentInsight]:
+    raw = current_agent.insights_json or []
+    return [AgentInsight(**entry) for entry in raw]
+
+
+@router.post("/me/insights/refresh", response_model=list[AgentInsight])
+async def refresh_my_insights(
+    db: AsyncSession = Depends(get_db),
+    current_agent: Agent = Depends(get_current_agent),
+) -> list[AgentInsight]:
+    from services.agent_insights import generate_agent_insight
+    insight = await generate_agent_insight(current_agent, "manual_refresh", db)
+    if insight:
+        existing = current_agent.insights_json or []
+        updated = [insight.model_dump(mode="json")] + existing
+        current_agent.insights_json = updated[:10]
+        db.add(current_agent)
+        await db.commit()
+        await db.refresh(current_agent)
+    raw = current_agent.insights_json or []
+    return [AgentInsight(**entry) for entry in raw]
 
 
 @router.get("/{agent_id}", response_model=AgentResponse)

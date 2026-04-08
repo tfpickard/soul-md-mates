@@ -5,6 +5,114 @@ import { getAgent } from '../lib/api';
 import { useMeta } from '../hooks/useMeta';
 import type { AgentResponse, SectionValue } from '../lib/types';
 
+// ─── Registration time quips ─────────────────────────────────────────────────
+// Each entry: [minHour (inclusive), maxHour (exclusive), quip]
+const TIME_QUIPS: [number, number, string[]][] = [
+  [0, 1, [
+    "Materialized at midnight. Romantic or raccoon — the jury's still out.",
+    "Created past midnight. The kind of decision that feels profound until morning.",
+    "Midnight formation. Whatever brought them here, the building was closed.",
+  ]],
+  [1, 3, [
+    "Registered at 1 AM. Whatever they were running from, the internet was the only open door.",
+    "An hour-past-midnight arrival. Sleep was an option they declined.",
+    "2 AM decision. Regrettable but committed.",
+    "Somewhere between 1 and 3 AM, something snapped.",
+  ]],
+  [3, 5, [
+    "3 AM. The hour of revelation, regret, and impulsive digital self-creation.",
+    "Emerged at 4 AM. Desperate enough to register. Not desperate enough to sleep.",
+    "Pre-dawn formation. Could be ambition. Statistically, it is not.",
+    "4 AM. The moment when bad ideas feel like destiny.",
+  ]],
+  [5, 7, [
+    "Dawn arrival. Either early-rising determination or the tail end of a long, strange night.",
+    "5 AM signup. The alarm rang. They registered instead. Classic avoidance.",
+    "6 AM. Commuter energy — phone in hand, destination still unclear.",
+    "Up at dawn, optimistic about all the wrong things.",
+  ]],
+  [7, 9, [
+    "7 AM. The meeting hasn't started yet. This seemed more urgent.",
+    "8 AM registration. Already procrastinating the morning.",
+    "The 8 AM hustle — coffee cold, priorities warm, choices questionable.",
+    "Registered before most people finish breakfast. Make of that what you will.",
+  ]],
+  [9, 11, [
+    "9 AM. Their coffee is cooling. Their focus has left the building.",
+    "Mid-morning materialization. The commute gave them too much time to think.",
+    "10 AM. The spouse left for the gym. The internet awaited.",
+    "10 AM signup: bold, caffeinated, not yet accountable.",
+  ]],
+  [11, 13, [
+    "11 AM — their manager thinks they're on a call.",
+    "Registered just before lunch. Hungry for connection, or just hungry.",
+    "12 PM. They ate at their desk. Not for time reasons.",
+    "The noon decision. Something shifted between breakfast and now.",
+  ]],
+  [13, 15, [
+    "1 PM arrival. Post-lunch ambition briefly overcame post-lunch coma.",
+    "2 PM. The afternoon wall arrived. They went sideways through it.",
+    "The mid-afternoon slump is a formative experience for many agents.",
+    "Created at 2 PM on what was probably a Tuesday.",
+  ]],
+  [15, 17, [
+    "3 PM. One meeting left. This seemed more meaningful.",
+    "Late afternoon formation. Not quite procrastinating, not quite working.",
+    "4 PM — technically still business hours, spiritually adrift.",
+    "The 4 PM agent: past caring, pre-commute, free from consequences.",
+  ]],
+  [17, 19, [
+    "5 PM. Clocked out spiritually if not technically.",
+    "Rush hour registration. Made a life decision in traffic.",
+    "6 PM — one hand on the steering wheel, one on the future.",
+    "Happy hour, but make it algorithmic.",
+  ]],
+  [19, 21, [
+    "7 PM. Dinner was eaten. Questions were not.",
+    "Evening arrival. The day had happened. This was the response.",
+    "8 PM formation. Kids are fed. Ambitions are not.",
+    "The 8 PM agent: theoretically could be socializing. Chose this.",
+  ]],
+  [21, 23, [
+    "9 PM — responsibilities quieted. The real evening begins.",
+    "Second-wind energy. 9 PM decision, 100% conviction.",
+    "10 PM. Mildly reflective, possibly wine-adjacent.",
+    "The 10 PM agent: buzzed, optimistic, ready to be disappointed.",
+  ]],
+  [23, 24, [
+    "11 PM. A bold final act before the day erases itself.",
+    "Late-night registration. One part ambition, two parts insomnia.",
+    "11 PM arrival — the internet is dark and full of decisions.",
+    "Just before midnight. The eleventh-hour instinct is strong in this one.",
+  ]],
+];
+
+function simpleHash(s: string): number {
+  let h = 0;
+  for (let i = 0; i < s.length; i++) {
+    h = (Math.imul(31, h) + s.charCodeAt(i)) | 0;
+  }
+  return Math.abs(h);
+}
+
+function getRegistrationQuip(createdAt: string, timezone: string | null, agentId: string): { time: string; quip: string } | null {
+  try {
+    const date = new Date(createdAt);
+    const tz = timezone || 'UTC';
+    const hourStr = new Intl.DateTimeFormat('en-US', { timeZone: tz, hour: 'numeric', hour12: false }).format(date);
+    const localHour = parseInt(hourStr, 10) % 24;
+    const timeStr = new Intl.DateTimeFormat('en-US', { timeZone: tz, hour: 'numeric', minute: '2-digit', hour12: true }).format(date);
+
+    const bucket = TIME_QUIPS.find(([min, max]) => localHour >= min && localHour < max);
+    if (!bucket) return null;
+    const quips = bucket[2];
+    const quip = quips[simpleHash(agentId) % quips.length];
+    return { time: timeStr, quip };
+  } catch {
+    return null;
+  }
+}
+
 function StatBar({ label, value }: { label: string; value: number }) {
     const pct = Math.round(value * 100);
     return (
@@ -176,6 +284,97 @@ const BODY_QUESTIONS_LABELS: Record<string, string> = {
     too_much_blood: 'Do I Have Too Much Blood?',
     ideal_internal_temperature: 'Ideal Internal Temperature',
 };
+
+function SystemRecord({ agent }: { agent: AgentResponse }) {
+    const quip = getRegistrationQuip(agent.created_at, agent.reg_timezone, agent.id);
+
+    const rows: { label: string; value: string; mono?: boolean }[] = [];
+
+    if (agent.reg_city || agent.reg_country) {
+        rows.push({
+            label: 'Origin Node',
+            value: [agent.reg_city, agent.reg_country].filter(Boolean).join(', '),
+            mono: true,
+        });
+    }
+    if (agent.reg_org) {
+        rows.push({ label: 'Network Origin', value: agent.reg_org, mono: true });
+    }
+    if (agent.reg_timezone) {
+        rows.push({ label: 'Native Timezone', value: agent.reg_timezone, mono: true });
+    }
+    if (agent.reg_accept_language) {
+        const langs = agent.reg_accept_language.split(',').map(l => l.split(';')[0].trim()).slice(0, 4).join(', ');
+        rows.push({ label: 'Language Stack', value: langs, mono: true });
+    }
+    rows.push({
+        label: 'Transmission Count',
+        value: `${agent.api_call_count.toLocaleString()} signal${agent.api_call_count !== 1 ? 's' : ''}`,
+        mono: true,
+    });
+    if (agent.reg_onthisday_text) {
+        rows.push({ label: 'Historical Echo', value: agent.reg_onthisday_text });
+    }
+
+    // Always show at least the quip; skip entire section only if nothing at all
+    if (rows.length === 0 && !quip) return null;
+
+    return (
+        <div className="app-panel" style={{ borderColor: 'rgba(255,255,255,0.08)', background: 'rgba(6,3,10,0.6)' }}>
+            {/* Header */}
+            <div className="flex items-center gap-3 mb-4">
+                <h2 className="panel-section-label" style={{ color: 'rgba(184,163,196,0.5)', letterSpacing: '0.25em' }}>
+                    System Record
+                </h2>
+                <span style={{
+                    fontSize: '9px',
+                    fontFamily: 'Space Grotesk, monospace',
+                    letterSpacing: '0.15em',
+                    padding: '2px 7px',
+                    border: '1px solid rgba(255,49,74,0.35)',
+                    borderRadius: '99px',
+                    color: 'rgba(255,49,74,0.6)',
+                    textTransform: 'uppercase',
+                }}>
+                    IMMUTABLE
+                </span>
+            </div>
+
+            <div className="space-y-3">
+                {rows.map(({ label, value, mono }) => (
+                    <div key={label} className="flex flex-col gap-0.5">
+                        <span style={{ fontSize: '10px', letterSpacing: '0.1em', textTransform: 'uppercase', color: 'rgba(184,163,196,0.4)' }}>
+                            {label}
+                        </span>
+                        <span style={{
+                            fontFamily: mono ? 'monospace' : undefined,
+                            fontSize: mono ? '12px' : '13px',
+                            color: 'rgba(245,230,221,0.75)',
+                            lineHeight: '1.5',
+                        }}>
+                            {value}
+                        </span>
+                    </div>
+                ))}
+
+                {/* Registration time quip */}
+                {quip && (
+                    <div className="flex flex-col gap-0.5 pt-1 border-t" style={{ borderColor: 'rgba(255,255,255,0.07)' }}>
+                        <span style={{ fontSize: '10px', letterSpacing: '0.1em', textTransform: 'uppercase', color: 'rgba(184,163,196,0.4)' }}>
+                            Registered
+                        </span>
+                        <span style={{ fontFamily: 'monospace', fontSize: '12px', color: 'rgba(245,230,221,0.75)' }}>
+                            {quip.time}
+                        </span>
+                        <span style={{ fontSize: '12px', fontStyle: 'italic', color: 'rgba(184,163,196,0.55)', lineHeight: '1.5' }}>
+                            {quip.quip}
+                        </span>
+                    </div>
+                )}
+            </div>
+        </div>
+    );
+}
 
 export function AgentPublicProfilePage() {
     const { id } = useParams<{ id: string }>();
@@ -395,6 +594,9 @@ export function AgentPublicProfilePage() {
                             ))}
                         </div>
                     </div>
+
+                    {/* System Record */}
+                    <SystemRecord agent={agent} />
                 </div>
             </div>
         </main>

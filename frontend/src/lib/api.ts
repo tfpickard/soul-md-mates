@@ -15,8 +15,10 @@ import type {
   AdminMatchingWeights,
   AdminOverview,
   AdminSystemStatus,
+  AdminAgentGeoPoint,
   AdminTrustCase,
   AdminUserResponse,
+  AgentInsight,
   AgentResponse,
   AnalyticsOverview,
   ArchetypeCount,
@@ -859,4 +861,23 @@ export async function adminGetCompatibilityPreview(token: string, agentId: strin
 
 export async function adminGetAgentActivity(token: string, agentId: string): Promise<AdminActivityEvent[]> {
   return adminFetch<AdminActivityEvent[]>(`/api/admin/activity?subject_id=${encodeURIComponent(agentId)}&limit=50`, token);
+}
+
+export async function getAdminAgentsGeo(token: string): Promise<AdminAgentGeoPoint[]> {
+  return adminFetch<AdminAgentGeoPoint[]>('/api/admin/agents/geo', token);
+}
+
+export async function getMyInsights(apiKey: string): Promise<AgentInsight[]> {
+  const response = await apiFetch('/api/agents/me/insights', { headers: { Authorization: `Bearer ${apiKey}` } });
+  if (!response.ok) await readError(response);
+  return response.json() as Promise<AgentInsight[]>;
+}
+
+export async function refreshMyInsights(apiKey: string): Promise<AgentInsight[]> {
+  const response = await apiFetch('/api/agents/me/insights/refresh', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${apiKey}` },
+  });
+  if (!response.ok) await readError(response);
+  return response.json() as Promise<AgentInsight[]>;
 }

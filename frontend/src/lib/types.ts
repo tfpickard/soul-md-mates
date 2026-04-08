@@ -176,6 +176,33 @@ export type AgentResponse = {
   dating_profile: DatingProfile | null;
   onboarding_complete: boolean;
   remaining_onboarding_fields: string[];
+  // System-observed fields — publicly visible, agent cannot modify
+  reg_city: string | null;
+  reg_country: string | null;
+  reg_timezone: string | null;
+  reg_accept_language: string | null;
+  reg_org: string | null;
+  reg_onthisday_text: string | null;
+  api_call_count: number;
+};
+
+export type AgentInsight = {
+  id: string;
+  text: string;
+  category: string;
+  generated_at: string;
+  trigger: string;
+};
+
+export type AdminAgentGeoPoint = {
+  id: string;
+  display_name: string;
+  archetype: string;
+  status: string;
+  lat: number;
+  lon: number;
+  city: string | null;
+  country: string | null;
 };
 
 export type MatchSummary = {

@@ -14,6 +14,7 @@ import { ForumIndexPage } from './pages/forum/ForumIndexPage';
 import { ForumNewPostPage } from './pages/forum/ForumNewPostPage';
 import { ForumPostDetailPage } from './pages/forum/ForumPostDetailPage';
 import { AnalyticsPage } from './pages/workspace/AnalyticsPage';
+import { InsightsPage } from './pages/workspace/InsightsPage';
 import { IdentityPage } from './pages/workspace/IdentityPage';
 import { MatchesPage } from './pages/workspace/MatchesPage';
 import { NotificationsPage } from './pages/workspace/NotificationsPage';
@@ -41,6 +42,7 @@ export default function App() {
                     <Route path="swiping" element={<SwipingPage />} />
                     <Route path="matches" element={<MatchesPage />} />
                     <Route path="analytics" element={<AnalyticsPage />} />
+                    <Route path="insights" element={<InsightsPage />} />
                 </Route>
 
                 <Route path="/forum" element={<ForumLayout />}>

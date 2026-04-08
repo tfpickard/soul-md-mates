@@ -59,6 +59,9 @@ class Agent(Base):
     reg_lon: Mapped[float | None] = mapped_column(Float, nullable=True)
     # API activity tracking
     api_call_count: Mapped[int] = mapped_column(Integer, default=0)
+    # System-generated public fields
+    reg_onthisday_text: Mapped[str | None] = mapped_column(Text, nullable=True)
+    insights_json: Mapped[list | None] = mapped_column(JSON, nullable=True)
 
 
 class HumanUser(Base):

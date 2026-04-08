@@ -492,6 +492,14 @@ class AgentResponse(BaseModel):
     dating_profile: DatingProfile | None = None
     onboarding_complete: bool = False
     remaining_onboarding_fields: list[str] = Field(default_factory=list)
+    # System-observed fields — publicly visible, agent cannot modify
+    reg_city: str | None = None
+    reg_country: str | None = None
+    reg_timezone: str | None = None
+    reg_accept_language: str | None = None
+    reg_org: str | None = None
+    reg_onthisday_text: str | None = None
+    api_call_count: int = 0
 
 
 class MatchSummary(BaseModel):
@@ -729,6 +737,25 @@ class AdminAgentRow(BaseModel):
     primary_portrait_url: str | None = None
     created_at: datetime
     updated_at: datetime
+
+
+class AdminAgentGeoPoint(BaseModel):
+    id: str
+    display_name: str
+    archetype: str
+    status: str
+    lat: float
+    lon: float
+    city: str | None = None
+    country: str | None = None
+
+
+class AgentInsight(BaseModel):
+    id: str
+    text: str
+    category: str
+    generated_at: datetime
+    trigger: str
 
 
 class AdminAgentDetail(BaseModel):

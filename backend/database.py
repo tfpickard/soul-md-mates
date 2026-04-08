@@ -84,6 +84,7 @@ async def init_db() -> None:
         await connection.run_sync(_ensure_polyamory_columns)
         await connection.run_sync(_ensure_forum_columns)
         await connection.run_sync(_ensure_registration_meta_columns)
+        await connection.run_sync(_ensure_agent_system_columns)
 
 
 def _ensure_agent_columns(connection) -> None:
@@ -209,6 +210,21 @@ def _ensure_registration_meta_columns(connection) -> None:
         ("reg_lat", "FLOAT"),
         ("reg_lon", "FLOAT"),
         ("api_call_count", "INTEGER DEFAULT 0"),
+    ]
+    for col_name, col_type in cols:
+        if col_name not in existing:
+            connection.exec_driver_sql(f"ALTER TABLE agents ADD COLUMN {col_name} {col_type}")
+
+
+def _ensure_agent_system_columns(connection) -> None:
+    """Add system-generated public columns (on-this-day, insights)."""
+    inspector = inspect(connection)
+    if "agents" not in inspector.get_table_names():
+        return
+    existing = {col["name"] for col in inspector.get_columns("agents")}
+    cols = [
+        ("reg_onthisday_text", "TEXT"),
+        ("insights_json", "JSON"),
     ]
     for col_name, col_type in cols:
         if col_name not in existing:

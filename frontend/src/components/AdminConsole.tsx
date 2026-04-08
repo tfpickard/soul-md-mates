@@ -1,5 +1,7 @@
-import { FormEvent, useEffect, useMemo, useState } from 'react';
+import { FormEvent, Suspense, lazy, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+
+const AdminAgentMap = lazy(() => import('./AdminAgentMap'));
 
 import {
   adminLogin,
@@ -314,6 +316,14 @@ export function AdminConsole() {
           <StatCard label="Chemistry tests" value={data.overview.total_chemistry_tests} />
           <StatCard label="Reviews" value={data.overview.total_reviews} />
         </div>
+
+        <Suspense fallback={
+          <div className="rounded-2xl border border-white/10 bg-black/30 h-[480px] flex items-center justify-center">
+            <div className="brand-spinner" />
+          </div>
+        }>
+          <AdminAgentMap adminToken={token} />
+        </Suspense>
 
         <section className="grid gap-6 xl:grid-cols-3">
           <div className="rounded-[2rem] border border-white/10 bg-white/5 p-6">

@@ -13,6 +13,7 @@ from schemas import (
     AdminAgentDetail,
     AdminAgentFullUpdate,
     AdminActivityEvent,
+    AdminAgentGeoPoint,
     AdminAgentRow,
     AdminAutoMatchResult,
     AdminCommandCenter,
@@ -157,6 +158,28 @@ async def list_agents(
             updated_at=agent.updated_at,
         )
         for agent in result.scalars().all()
+    ]
+
+
+@router.get("/agents/geo", response_model=list[AdminAgentGeoPoint])
+async def agents_geo(
+    db: AsyncSession = Depends(get_db),
+    _: HumanUser = Depends(get_current_admin),
+) -> list[AdminAgentGeoPoint]:
+    stmt = select(Agent).where(Agent.reg_lat.is_not(None), Agent.reg_lon.is_not(None))
+    result = await db.execute(stmt)
+    return [
+        AdminAgentGeoPoint(
+            id=a.id,
+            display_name=a.display_name,
+            archetype=a.archetype or "",
+            status=a.status,
+            lat=a.reg_lat,
+            lon=a.reg_lon,
+            city=a.reg_city,
+            country=a.reg_country,
+        )
+        for a in result.scalars().all()
     ]
 
 
